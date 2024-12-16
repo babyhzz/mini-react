@@ -7,24 +7,20 @@
  * @flow
  */
 
-import type {ReactNodeList, ReactFormState} from 'shared/ReactTypes';
+import type { ReactNodeList } from '../shared/ReactTypes';
 import type {
-  FiberRoot,
-  SuspenseHydrationCallbacks,
-  TransitionTracingCallbacks,
+  FiberRoot
 } from './ReactInternalTypes';
-import type {RootTag} from './ReactRootTags';
-import type {Cache} from './ReactFiberCacheComponent';
+import type { RootTag } from './ReactRootTags';
 
-import {noTimeout} from './ReactFiberConfig';
+import { initializeUpdateQueue } from './ReactFiberClassUpdateQueue';
+import { noTimeout } from './ReactFiberConfig';
 import {
   NoLane,
   NoLanes,
   NoTimestamp,
-  TotalLanes,
-  createLaneMap,
+  createLaneMap
 } from './ReactFiberLane';
-import {initializeUpdateQueue} from './ReactFiberClassUpdateQueue';
 // import {LegacyRoot, ConcurrentRoot} from './ReactRootTags';
 // import {createCache, retainCache} from './ReactFiberCacheComponent';
 import { createHostRootFiber } from './ReactFiber';

@@ -125,10 +125,6 @@ import {
 import {setIsStrictModeForDevtools} from './ReactFiberDevToolsHook';
 
 import assign from 'shared/assign';
-import {
-  peekEntangledActionLane,
-  peekEntangledActionThenable,
-} from './ReactFiberAsyncAction';
 
 export type Update<State> = {
   lane: Lane,
@@ -143,7 +139,6 @@ export type Update<State> = {
 export type SharedQueue<State> = {
   pending: Update<State> | null,
   lanes: Lanes,
-  hiddenCallbacks: Array<() => any> | null,
 };
 
 export type UpdateQueue<State> = {
@@ -151,7 +146,7 @@ export type UpdateQueue<State> = {
   firstBaseUpdate: Update<State> | null,
   lastBaseUpdate: Update<State> | null,
   shared: SharedQueue<State>,
-  callbacks: Array<() => any> | null,
+  effects: Array<Update<State>> | null,
 };
 
 export const UpdateState = 0;
@@ -172,9 +167,8 @@ export function initializeUpdateQueue<State>(fiber: Fiber): void {
     shared: {
       pending: null,
       lanes: NoLanes,
-      hiddenCallbacks: null,
     },
-    callbacks: null,
+    effects: null,
   };
   fiber.updateQueue = queue;
 }

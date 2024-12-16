@@ -65,6 +65,8 @@ var isPerformingWork = false;
 var isHostCallbackScheduled = false;
 var isHostTimeoutScheduled = false;
 
+var currentPriorityLevel = NormalPriority;
+
 // Capture local references to native APIs, in case a polyfill overrides them.
 const localSetTimeout = setTimeout;
 const localClearTimeout = clearTimeout;
@@ -337,15 +339,21 @@ function cancelHostTimeout() {
   taskTimeoutID = -1;
 }
 
+function getCurrentPriorityLevel() {
+  return currentPriorityLevel;
+}
+
 export {
-  ImmediatePriority as unstable_ImmediatePriority,
-  UserBlockingPriority as unstable_UserBlockingPriority,
-  NormalPriority as unstable_NormalPriority,
-  IdlePriority as unstable_IdlePriority,
-  LowPriority as unstable_LowPriority,
-  unstable_scheduleCallback,
-  shouldYieldToHost as unstable_shouldYield,
-  requestPaint as unstable_requestPaint,
-  getCurrentTime as unstable_now,
-  forceFrameRate as unstable_forceFrameRate,
+  getCurrentPriorityLevel,
+  ImmediatePriority,
+  UserBlockingPriority,
+  NormalPriority,
+  IdlePriority,
+  LowPriority,
+  getCurrentTime as now,
+  // unstable_scheduleCallback,
+  // shouldYieldToHost as unstable_shouldYield,
+  // requestPaint as unstable_requestPaint,
+  // getCurrentTime as unstable_now,
+  // forceFrameRate as unstable_forceFrameRate,
 };

@@ -1,13 +1,13 @@
 import type { EventPriority } from "../react-reconciler/ReactEventPriorities";
 
-import { getEventPriority } from "./ReactDOMEventListener";
+import { getEventPriority } from "../react-dom/ReactDOMEventListener";
 import {
   NoEventPriority,
   DefaultEventPriority,
 } from "../react-reconciler/ReactEventPriorities";
 
 import ReactDOMSharedInternals from "../react-dom/ReactDOMSharedInternals";
-import { DOMEventName } from "./DOMEventNames";
+import { DOMEventName } from "../react-dom/DOMEventNames";
 
 export function setCurrentUpdatePriority(newPriority: EventPriority): void {
   ReactDOMSharedInternals.p /* currentUpdatePriority */ = newPriority;

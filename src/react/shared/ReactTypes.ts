@@ -58,9 +58,6 @@ export type ReactContext<T> = {
   _currentValue: T,
   _currentValue2: T,
   _threadCount: number,
-  // DEV only
-  _currentRenderer?: Object | null,
-  _currentRenderer2?: Object | null,
   // This value may be added by application code
   // to improve DEV tooling display names
   displayName?: string,

@@ -27,8 +27,42 @@ export const IdleLane: Lane = /*                        */ 0b0010000000000000000
 const NonIdleLanes: Lanes = /*                          */ 0b0000111111111111111111111111111;
 
 export function getHighestPriorityLane(lanes: Lanes): Lane {
+  // 这里取最低位的1，-为按位取反后+1
   return lanes & -lanes;
 }
+
+function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
+  switch (getHighestPriorityLane(lanes)) {
+    case SyncLane:
+      return SyncLane;
+    case InputContinuousHydrationLane:
+      return InputContinuousHydrationLane;
+    case InputContinuousLane:
+      return InputContinuousLane;
+    case DefaultHydrationLane:
+      return DefaultHydrationLane;
+    case DefaultLane:
+      return DefaultLane;
+    default:
+      // This shouldn't be reachable, but as a fallback, return the entire bitmask.
+      return lanes;
+  }
+}
+
+export function includesBlockingLane(root: FiberRoot, lanes: Lanes) {
+  const SyncDefaultLanes =
+    InputContinuousHydrationLane |
+    InputContinuousLane |
+    DefaultHydrationLane |
+    DefaultLane;
+  return (lanes & SyncDefaultLanes) !== NoLanes;
+}
+export function includesExpiredLane(root: FiberRoot, lanes: Lanes) {
+  // This is a separate check from includesBlockingLane because a lane can
+  // expire after a render has already started.
+  return (lanes & root.expiredLanes) !== NoLanes;
+}
+
 
 export function includesNonIdleWork(lanes: Lanes): boolean {
   return (lanes & NonIdleLanes) !== NoLanes;
@@ -38,15 +72,78 @@ export function mergeLanes(a: Lanes | Lane, b: Lanes | Lane): Lanes {
   return a | b;
 }
 
-export function markRootUpdated(root: FiberRoot, updateLane: Lane) {
+function pickArbitraryLaneIndex(lanes: Lanes) {
+  return 31 - Math.clz32(lanes);
+}
+
+function laneToIndex(lane: Lane) {
+  return pickArbitraryLaneIndex(lane);
+}
+
+export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
+  // Early bailout if there's no pending work left.
+  const pendingLanes = root.pendingLanes;
+  if (pendingLanes === NoLanes) {
+    return NoLanes;
+  }
+
+  let nextLanes = NoLanes;
+
+  const suspendedLanes = root.suspendedLanes;
+  const pingedLanes = root.pingedLanes;
+
+  // Do not work on any idle work until all the non-idle work has finished,
+  // even if the work is suspended.
+  const nonIdlePendingLanes = pendingLanes & NonIdleLanes;
+  if (nonIdlePendingLanes !== NoLanes) {
+    const nonIdleUnblockedLanes = nonIdlePendingLanes & ~suspendedLanes;
+    if (nonIdleUnblockedLanes !== NoLanes) {
+      nextLanes = getHighestPriorityLanes(nonIdleUnblockedLanes);
+    } else {
+      const nonIdlePingedLanes = nonIdlePendingLanes & pingedLanes;
+      if (nonIdlePingedLanes !== NoLanes) {
+        nextLanes = getHighestPriorityLanes(nonIdlePingedLanes);
+      }
+    }
+  } else {
+    // The only remaining work is Idle.
+    const unblockedLanes = pendingLanes & ~suspendedLanes;
+    if (unblockedLanes !== NoLanes) {
+      nextLanes = getHighestPriorityLanes(unblockedLanes);
+    } else {
+      if (pingedLanes !== NoLanes) {
+        nextLanes = getHighestPriorityLanes(pingedLanes);
+      }
+    }
+  }
+
+  if (nextLanes === NoLanes) {
+    // This should only be reachable if we're suspended
+    // TODO: Consider warning in this path if a fallback timer is not scheduled.
+    return NoLanes;
+  }
+
+  return nextLanes;
+}
+
+export function markRootUpdated(root: FiberRoot, updateLane: Lane, eventTime: number) {
   root.pendingLanes |= updateLane;
+
+  if (updateLane !== IdleLane) {
+    root.suspendedLanes = NoLanes;
+    root.pingedLanes = NoLanes;
+  }
+
+  const eventTimes = root.eventTimes;
+  const index = laneToIndex(updateLane);
+  // We can always overwrite an existing timestamp because we prefer the most
+  // recent event, and we assume time is monotonically increasing.
+  eventTimes[index] = eventTime;
 }
 
 export const NoTimestamp = -1;
 
-function pickArbitraryLaneIndex(lanes: Lanes) {
-  return 31 - Math.clz32(lanes);
-}
+
 
 export function markStarvedLanesAsExpired(
   root: FiberRoot,

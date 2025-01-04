@@ -7,62 +7,50 @@
  * @flow
  */
 
-import type { ReactNodeList } from '../shared/ReactTypes';
-import type {
-  Container,
-  PublicInstance
-} from './ReactFiberConfig';
-import type { Lane } from './ReactFiberLane';
-import type {
-  Fiber,
-  FiberRoot
-} from './ReactInternalTypes';
-import type { RootTag } from './ReactRootTags';
+import type { ReactNodeList } from "../shared/ReactTypes";
+import type { Container } from "./ReactFiberConfig";
+import type { Lane } from "./ReactFiberLane";
+import type { FiberRoot } from "./ReactInternalTypes";
+import type { RootTag } from "./ReactRootTags";
 
-import { get as getInstance } from '../shared/ReactInstanceMap';
-import {
-  createUpdate,
-  enqueueUpdate
-} from './ReactFiberClassUpdateQueue';
-import {
-  getPublicInstance
-} from './ReactFiberConfig';
-import {
-  emptyContextObject,
-  findCurrentUnmaskedContext
-} from './ReactFiberContext';
-import { createFiberRoot } from './ReactFiberRoot';
-import {
-  findCurrentHostFiber
-} from './ReactFiberTreeReflection';
-import {
-  requestUpdateLane,
-  scheduleUpdateOnFiber
-} from './ReactFiberWorkLoop';
+import { get as getInstance } from "../shared/ReactInstanceMap";
+import { createUpdate, enqueueUpdate } from "./ReactFiberClassUpdateQueue";
+import { emptyContextObject } from "./ReactFiberContext";
+import { createFiberRoot } from "./ReactFiberRoot";
+import { requestEventTime, requestUpdateLane, scheduleUpdateOnFiber } from "./ReactFiberWorkLoop";
 
 function getContextForSubtree(
   parentComponent?: any,
 ): Object {
-  if (!parentComponent) {
-    return emptyContextObject;
-  }
+  return emptyContextObject;
 
-  const fiber = getInstance(parentComponent);
-  // hc 是否无用？
-  const parentContext = findCurrentUnmaskedContext(fiber);
+  // hc 这里注释掉，不做context处理
+  // if (!parentComponent) {
+  //   return emptyContextObject;
+  // }
 
-  return parentContext;
+  // const fiber = getInstance(parentComponent);
+  // const parentContext = findCurrentUnmaskedContext(fiber);
+
+  // if (fiber.tag === ClassComponent) {
+  //   const Component = fiber.type;
+  //   if (isLegacyContextProvider(Component)) {
+  //     return processChildContext(fiber, Component, parentContext);
+  //   }
+  // }
+
+  // return parentContext;
 }
 
 function findHostInstance(component: Object): PublicInstance | null {
   const fiber = getInstance(component);
   if (fiber === undefined) {
-    if (typeof component.render === 'function') {
-      throw new Error('Unable to find node on an unmounted component.');
+    if (typeof component.render === "function") {
+      throw new Error("Unable to find node on an unmounted component.");
     } else {
-      const keys = Object.keys(component).join(',');
+      const keys = Object.keys(component).join(",");
       throw new Error(
-        `Argument appears to not be a ReactComponent. Keys: ${keys}`,
+        `Argument appears to not be a ReactComponent. Keys: ${keys}`
       );
     }
   }
@@ -75,42 +63,24 @@ function findHostInstance(component: Object): PublicInstance | null {
 
 export function createContainer(
   containerInfo: Container,
-  tag: RootTag,
+  tag: RootTag
 ): FiberRoot {
-  return createFiberRoot(
-    containerInfo,
-    tag,
-    null
-  );
+  return createFiberRoot(containerInfo, tag, null);
 }
 
 export function updateContainer(
   element: ReactNodeList,
   container: FiberRoot,
   parentComponent?: any,
-  callback?: Function | null,
+  callback?: Function | null
 ): Lane {
   const current = container.current;
-  const lane = requestUpdateLane(current);
-  updateContainerImpl(
-    current,
-    lane,
-    element,
-    container,
-    parentComponent,
-    callback,
-  );
-  return lane;
-}
 
-function updateContainerImpl(
-  rootFiber: Fiber,
-  lane: Lane,
-  element: ReactNodeList,
-  container: FiberRoot,
-  parentComponent?: any,
-  callback?: Function | null,
-): void {
+  // ? 这个时间用来做什么的？
+  const eventTime = requestEventTime();
+  const lane = requestUpdateLane(current);
+
+  // hc: context 相关注释掉先
   const context = getContextForSubtree(parentComponent);
   if (container.context === null) {
     container.context = context;
@@ -118,10 +88,10 @@ function updateContainerImpl(
     container.pendingContext = context;
   }
 
-  const update = createUpdate(lane);
+  const update = createUpdate(eventTime, lane);
   // Caution: React DevTools currently depends on this property
   // being called "element".
-  update.payload = {element};
+  update.payload = { element };
 
   callback = callback === undefined ? null : callback;
   if (callback !== null) {
@@ -129,16 +99,13 @@ function updateContainerImpl(
     update.callback = callback;
   }
 
-  const root = enqueueUpdate(rootFiber, update, lane);
+  const root = enqueueUpdate(current, update, lane);
   if (root !== null) {
-    scheduleUpdateOnFiber(root, rootFiber, lane);
+    scheduleUpdateOnFiber(root, current, lane, eventTime);
   }
+
+  return lane;
 }
 
-export {
-  batchedUpdates,
-  deferredUpdates,
-  discreteUpdates, flushPassiveEffects, flushSyncFromReconciler,
-  flushSyncWork,
-  isAlreadyRendering
-};
+export { };
+

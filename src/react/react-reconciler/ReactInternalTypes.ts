@@ -1,8 +1,10 @@
+import { ReactContext } from "../shared/ReactTypes";
 import { ConcurrentUpdate } from "./ReactFiberConcurrentUpdates";
 import { Container } from "./ReactFiberConfig";
 import { Flags } from "./ReactFiberFlags";
 import { Lane, LaneMap, Lanes } from "./ReactFiberLane";
 import { RootTag } from "./ReactRootTags";
+import { TypeOfMode } from "./ReactTypeOfMode";
 import { WorkTag } from "./ReactWorkTags";
 
 
@@ -70,7 +72,7 @@ export type Fiber = {
 
   // Dependencies (contexts, events) for this fiber, if it has any
   // hc delete?
-  // dependencies: any,
+  dependencies: any,
 
   // Bitfield that describes properties about the fiber and its subtree. E.g.
   // the ConcurrentMode flag indicates whether the subtree should be async-by-
@@ -79,7 +81,7 @@ export type Fiber = {
   // value should remain unchanged throughout the fiber's lifetime, particularly
   // before its child fibers are created.
   // hc delete?
-  // mode: TypeOfMode,
+  mode: TypeOfMode,
 
   // Effect
   flags: Flags,
@@ -128,7 +130,7 @@ export type FiberRoot = {
   current: Fiber,
 
   // hc delete?
-  // pingCache: WeakMap<Wakeable, Set<mixed>> | Map<Wakeable, Set<mixed>> | null,
+  // pingCache: WeakMap<Wakeable, Set<any>> | Map<Wakeable, Set<any>> | null,
 
   // A finished work-in-progress HostRoot that's ready to be committed.
   finishedWork: Fiber | null,
@@ -151,19 +153,70 @@ export type FiberRoot = {
   // task that the root will work on.
   callbackNode: any,
   callbackPriority: Lane,
+
+    // * 下面两个全局记录各优先级触发时间和过期时间，用于辅助调度
+  // hc 记录各个优先级Lane上事件发生的时间
+  eventTimes: LaneMap<number>,
+  // hc 记录各个优先级Lane上任务的过期时间
   expirationTimes: LaneMap<number>,
+
   hiddenUpdates: LaneMap<Array<ConcurrentUpdate> | null>,
 
   pendingLanes: Lanes,
-  // suspendedLanes: Lanes,
-  // pingedLanes: Lanes,
+  suspendedLanes: Lanes,
+  pingedLanes: Lanes,
   // warmLanes: Lanes,
-  // expiredLanes: Lanes,
+  expiredLanes: Lanes,
   // errorRecoveryDisabledLanes: Lanes,
   // shellSuspendCounter: number,
 
   finishedLanes: Lanes,
 
-  entangledLanes: Lanes,
-  entanglements: LaneMap<Lanes>,
+  // entangledLanes: Lanes,
+  // entanglements: LaneMap<Lanes>,
+};
+
+
+type BasicStateAction<S> = ((state: S) => S) | S;
+type Dispatch<A> = (action: A) => void;
+
+export type Dispatcher = {
+  getCacheSignal?: () => AbortSignal,
+  getCacheForType?: <T>(resourceType: () => T) => T,
+  readContext<T>(context: ReactContext<T>): T,
+  useState<S>(initialState: (() => S) | S): [S, Dispatch<BasicStateAction<S>>],
+  useReducer<S, I, A>(
+    reducer: (arg0: S, arg1: A) => S,
+    initialArg: I,
+    init?: (arg0: I) => S,
+  ): [S, Dispatch<A>],
+  useContext<T>(context: ReactContext<T>): T,
+  useRef<T>(initialValue: T): { current: T },
+  useEffect(
+    create: () => (() => void) | void,
+    deps: Array<any> | void | null,
+  ): void,
+  useInsertionEffect(
+    create: () => (() => void) | void,
+    deps: Array<any> | void | null,
+  ): void,
+  useLayoutEffect(
+    create: () => (() => void) | void,
+    deps: Array<any> | void | null,
+  ): void,
+  useCallback<T>(callback: T, deps: Array<any> | void | null): T,
+  useMemo<T>(nextCreate: () => T, deps: Array<any> | void | null): T,
+  useImperativeHandle<T>(
+    ref: {current: T | null} | ((inst: T | null) => any) | null | void,
+    create: () => T,
+    deps: Array<any> | void | null,
+  ): void,
+  useDeferredValue<T>(value: T): T,
+  // useSyncExternalStore<T>(
+  //   subscribe: (() => void) => (() => void),
+  //   getSnapshot: () => T,
+  //   getServerSnapshot?: () => T,
+  // ): T,
+  useId(): string,
+
 };

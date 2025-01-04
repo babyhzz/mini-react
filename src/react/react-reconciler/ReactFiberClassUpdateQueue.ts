@@ -126,27 +126,30 @@ import {setIsStrictModeForDevtools} from './ReactFiberDevToolsHook';
 
 import assign from 'shared/assign';
 
-export type Update<State> = {
+export type Update = {
+  // TODO: Temporary field. Will remove this by storing a map of
+  // transition -> event time on the root.
+  eventTime: number,
   lane: Lane,
 
   tag: 0 | 1 | 2 | 3,
   payload: any,
   callback: (() => any) | null,
 
-  next: Update<State> | null,
+  next: Update | null,
 };
 
-export type SharedQueue<State> = {
-  pending: Update<State> | null,
+export type SharedQueue = {
+  pending: Update | null,
   lanes: Lanes,
 };
 
-export type UpdateQueue<State> = {
-  baseState: State,
-  firstBaseUpdate: Update<State> | null,
-  lastBaseUpdate: Update<State> | null,
-  shared: SharedQueue<State>,
-  effects: Array<Update<State>> | null,
+export type UpdateQueue = {
+  baseState: any,
+  firstBaseUpdate: Update| null,
+  lastBaseUpdate: Update | null,
+  shared: SharedQueue,
+  effects: Array<Update> | null,
 };
 
 export const UpdateState = 0;
@@ -159,8 +162,8 @@ export const CaptureUpdate = 3;
 // `checkHasForceUpdateAfterProcessing`.
 let hasForceUpdate = false;
 
-export function initializeUpdateQueue<State>(fiber: Fiber): void {
-  const queue: UpdateQueue<State> = {
+export function initializeUpdateQueue(fiber: Fiber): void {
+  const queue: UpdateQueue = {
     baseState: fiber.memoizedState,
     firstBaseUpdate: null,
     lastBaseUpdate: null,
@@ -192,8 +195,9 @@ export function cloneUpdateQueue<State>(
   }
 }
 
-export function createUpdate(lane: Lane): Update<any> {
-  const update: Update<any> = {
+export function createUpdate(eventTime: number, lane: Lane): Update {
+  const update: Update = {
+    eventTime,
     lane,
 
     tag: UpdateState,
@@ -205,9 +209,9 @@ export function createUpdate(lane: Lane): Update<any> {
   return update;
 }
 
-export function enqueueUpdate<State>(
+export function enqueueUpdate(
   fiber: Fiber,
-  update: Update<State>,
+  update: Update,
   lane: Lane,
 ): FiberRoot | null {
   const updateQueue = fiber.updateQueue;
@@ -216,7 +220,7 @@ export function enqueueUpdate<State>(
     return null;
   }
 
-  const sharedQueue: SharedQueue<State> = updateQueue.shared;
+  const sharedQueue: SharedQueue = updateQueue.shared;
   return enqueueConcurrentClassUpdate(fiber, sharedQueue, update, lane);
 }
 

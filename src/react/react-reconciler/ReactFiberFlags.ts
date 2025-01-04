@@ -70,3 +70,8 @@ export const MaySuspendCommit = /*             */ 0b0001000000000000000000000000
 export const PlacementDEV = /*                 */ 0b0010000000000000000000000000;
 export const MountLayoutDev = /*               */ 0b0100000000000000000000000000;
 export const MountPassiveDev = /*              */ 0b1000000000000000000000000000;
+
+// Union of tags that don't get reset on clones.
+// This allows certain concepts to persist without recalculating them,
+// e.g. whether a subtree contains passive effects or portals.
+export const StaticMask = LayoutStatic | PassiveStatic | RefStatic;

@@ -59,10 +59,10 @@ function FiberRootNode(
   // this.errorRecoveryDisabledLanes = NoLanes;
   // this.shellSuspendCounter = 0;
 
-  this.entangledLanes = NoLanes;
-  this.entanglements = createLaneMap(NoLanes);
+  // this.entangledLanes = NoLanes;
+  // this.entanglements = createLaneMap(NoLanes);
 
-  this.hiddenUpdates = createLaneMap(null);;
+  // this.hiddenUpdates = createLaneMap(null);;
 }
 
 export function createFiberRoot(
@@ -78,14 +78,14 @@ export function createFiberRoot(
 
   // hc 创建HostRootFiber
   const uninitializedFiber = createHostRootFiber();
+  // hc 建立 FiberRoot 和 HostRootFiber 的关联关系
+  root.current = uninitializedFiber;
+  uninitializedFiber.stateNode = root;
+
   const initialState: RootState = {
     element: initialChildren
   };
   uninitializedFiber.memoizedState = initialState;
-
-  // hc 建立 FiberRoot 和 HostRootFiber 的关联关系
-  root.current = uninitializedFiber;
-  uninitializedFiber.stateNode = root;
 
   initializeUpdateQueue(uninitializedFiber);
 

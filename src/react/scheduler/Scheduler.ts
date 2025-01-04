@@ -173,7 +173,7 @@ function workLoop(initialTime: number) {
   }
 }
 
-function unstable_scheduleCallback(
+export function scheduleCallback(
   priorityLevel: PriorityLevel,
   callback: Callback
 ): Task {
@@ -343,17 +343,9 @@ function getCurrentPriorityLevel() {
   return currentPriorityLevel;
 }
 
-export {
-  getCurrentPriorityLevel,
-  ImmediatePriority,
-  UserBlockingPriority,
-  NormalPriority,
-  IdlePriority,
-  LowPriority,
-  getCurrentTime as now,
-  // unstable_scheduleCallback,
-  // shouldYieldToHost as unstable_shouldYield,
-  // requestPaint as unstable_requestPaint,
-  // getCurrentTime as unstable_now,
-  // forceFrameRate as unstable_forceFrameRate,
-};
+export function cancelCallback(task: Task) {
+  // Null out the callback to indicate the task has been canceled. (Can't
+  // remove from the queue because you can't remove arbitrary nodes from an
+  // array based heap, only the first one.)
+  task.callback = null;
+}

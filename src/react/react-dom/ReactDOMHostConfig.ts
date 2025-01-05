@@ -1,6 +1,10 @@
 import { DOMEventName } from "./DOMEventNames";
 import { DefaultEventPriority, EventPriority } from "../react-reconciler/ReactEventPriorities";
 import { getEventPriority } from "./ReactDOMEventListener";
+import { Container } from "../react-reconciler/ReactFiberConfig";
+import { createElement } from "./ReactDOMComponent";
+import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
+import { Fiber } from "../react-reconciler/ReactInternalTypes";
 
 export type Type = string;
 export type Props = {
@@ -17,6 +21,10 @@ export type Props = {
   top?: null | number,
   [key: string]: any;
 };
+
+export type Instance = Element;
+export type TextInstance = Text;
+export type PublicInstance = Element | Text;
 
 export function getCurrentEventPriority(): EventPriority {
   const currentEvent = window.event;
@@ -36,4 +44,23 @@ export function shouldSetTextContent(type: string, props: Props): boolean {
       props.dangerouslySetInnerHTML !== null &&
       props.dangerouslySetInnerHTML.__html != null)
   );
+}
+
+export function createInstance(
+  type: string,
+  props: Props,
+  rootContainerInstance: Container,
+  hostContext: any,
+  internalInstanceHandle: Fiber,
+): Instance {
+  let parentNamespace: string = hostContext;
+  const domElement: Instance = createElement(
+    type,
+    props,
+    rootContainerInstance,
+    parentNamespace,
+  );
+  precacheFiberNode(internalInstanceHandle, domElement);
+  updateFiberProps(domElement, props);
+  return domElement;
 }

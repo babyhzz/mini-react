@@ -4,6 +4,8 @@
 
 import { getIteratorFn, REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE, REACT_LAZY_TYPE, REACT_PORTAL_TYPE } from "../shared/ReactSymbols";
 import { ReactElement, ReactPortal } from "../shared/ReactTypes";
+import { createFiberFromElement } from "./ReactFiber";
+import { Placement } from "./ReactFiberFlags";
 import { Lanes } from "./ReactFiberLane";
 import { Fiber } from "./ReactInternalTypes";
 import { Fragment, HostPortal } from "./ReactWorkTags";
@@ -22,6 +24,15 @@ function ChildReconciler(shouldTrackSideEffects) {
     } else {
       deletions.push(childToDelete);
     }
+  }
+
+  function coerceRef(
+    returnFiber: Fiber,
+    current: Fiber | null,
+    element: ReactElement,
+  ) {
+    const mixedRef = element.ref;
+    return mixedRef;
   }
 
   function deleteRemainingChildren(

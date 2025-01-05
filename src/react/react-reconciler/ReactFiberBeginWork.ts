@@ -1,9 +1,15 @@
+import { shouldSetTextContent } from "../react-dom/ReactDOMHostConfig";
 import ReactSharedInternals from "../react/ReactSharedInternals";
+import { mountChildFibers, reconcileChildFibers } from "./ReactChildFiber";
+import { constructClassInstance, mountClassInstance } from "./ReactFiberClassComponent";
 import {
   cloneUpdateQueue,
   processUpdateQueue,
 } from "./ReactFiberClassUpdateQueue";
+import { ContentReset, Ref } from "./ReactFiberFlags";
+import { pushHostContainer } from "./ReactFiberHostContext";
 import { Lanes, NoLanes } from "./ReactFiberLane";
+import { resolveDefaultProps } from "./ReactFiberLazyComponent";
 import { RootState } from "./ReactFiberRoot";
 import { Fiber, FiberRoot } from "./ReactInternalTypes";
 import {
@@ -73,8 +79,50 @@ export function reconcileChildren(
     );
   }
 }
+function markRef(current: Fiber | null, workInProgress: Fiber) {
+  const ref = workInProgress.ref;
+  if (
+    (current === null && ref !== null) ||
+    (current !== null && current.ref !== ref)
+  ) {
+    // Schedule a Ref effect
+    workInProgress.flags |= Ref;
+  }
+}
+
+function finishClassComponent(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  Component: any,
+  shouldUpdate: boolean,
+  hasContext: boolean,
+  renderLanes: Lanes,
+) {
+  // Refs should update even if shouldComponentUpdate returns false
+  markRef(current, workInProgress);
+
+  const instance = workInProgress.stateNode;
+  // Rerender
+  ReactCurrentOwner.current = workInProgress;
+  let nextChildren = instance.render();
+
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+
+  // Memoize state using the values we just used to render.
+  // TODO: Restructure so we never read values from the instance.
+  workInProgress.memoizedState = instance.state;
+
+  return workInProgress.child;
+}
+
+function pushHostRootContext(workInProgress) {
+  const root = workInProgress.stateNode;
+  pushHostContainer(workInProgress, root.containerInfo);
+}
 
 function updateHostRoot(current, workInProgress, renderLanes) {
+  pushHostRootContext(workInProgress);
+
   const nextProps = workInProgress.pendingProps;
   const prevState = workInProgress.memoizedState;
   const prevChildren = prevState.element;
@@ -89,6 +137,89 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   const nextChildren = nextState.element;
   reconcileChildren(current, workInProgress, nextChildren, renderLanes);
   return workInProgress.child;
+}
+
+function updateClassComponent(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  Component: any,
+  nextProps: any,
+  renderLanes: Lanes,
+) {
+  const instance = workInProgress.stateNode;
+  let shouldUpdate;
+  let hasContext;
+  if (instance === null) {
+    // In the initial pass we might need to construct the instance.
+    constructClassInstance(workInProgress, Component, nextProps);
+    mountClassInstance(workInProgress, Component, nextProps, renderLanes);
+    shouldUpdate = true;
+  } else if (current === null) {
+    // hc 不知道这个的调用时机
+    // In a resume, we'll already have an instance we can reuse.
+    // shouldUpdate = resumeMountClassInstance(
+    //   workInProgress,
+    //   Component,
+    //   nextProps,
+    //   renderLanes,
+    // );
+  } else {
+    // hc 不知道这个的调用时机
+    // shouldUpdate = updateClassInstance(
+    //   current,
+    //   workInProgress,
+    //   Component,
+    //   nextProps,
+    //   renderLanes,
+    // );
+  }
+  const nextUnitOfWork = finishClassComponent(
+    current,
+    workInProgress,
+    Component,
+    shouldUpdate,
+    hasContext,
+    renderLanes,
+  );
+  return nextUnitOfWork;
+}
+
+function updateHostComponent(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  renderLanes: Lanes,
+) {
+  const type = workInProgress.type;
+  const nextProps = workInProgress.pendingProps;
+  const prevProps = current !== null ? current.memoizedProps : null;
+
+  let nextChildren = nextProps.children;
+  const isDirectTextChild = shouldSetTextContent(type, nextProps);
+
+  if (isDirectTextChild) {
+    // We special case a direct text child of a host node. This is a common
+    // case. We won't handle it as a reified child. We will instead handle
+    // this in the host environment that also has access to this prop. That
+    // avoids allocating another HostText fiber and traversing it.
+    nextChildren = null;
+  } else if (prevProps !== null && shouldSetTextContent(type, prevProps)) {
+    // If we're switching from a direct text child to a normal child, or to
+    // empty, we need to schedule the text content to be reset.
+    workInProgress.flags |= ContentReset;
+  }
+
+  markRef(current, workInProgress);
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  return workInProgress.child;
+}
+
+function updateHostText(current, workInProgress) {
+  if (current === null) {
+    // tryToClaimNextHydratableInstance(workInProgress);
+  }
+  // Nothing to do here. This is terminal. We'll do the completion step
+  // immediately after.
+  return null;
 }
 
 function beginWork(

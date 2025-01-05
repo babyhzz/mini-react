@@ -12,7 +12,7 @@ import type { ReactNodeList } from "../shared/ReactTypes";
 
 import {
   markContainerAsRoot
-} from "../react-dom-binding/ReactDOMComponentTree";
+} from "./ReactDOMComponentTree";
 
 import {
   createContainer,

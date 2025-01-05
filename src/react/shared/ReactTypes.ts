@@ -7,7 +7,7 @@
  * @flow
  */
 
-type ReactElement = any;
+export type ReactElement = any;
 
 export type ReactNode =
   | ReactElement

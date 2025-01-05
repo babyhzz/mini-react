@@ -339,7 +339,7 @@ function cancelHostTimeout() {
   taskTimeoutID = -1;
 }
 
-function getCurrentPriorityLevel() {
+export function getCurrentPriorityLevel() {
   return currentPriorityLevel;
 }
 
@@ -348,4 +348,8 @@ export function cancelCallback(task: Task) {
   // remove from the queue because you can't remove arbitrary nodes from an
   // array based heap, only the first one.)
   task.callback = null;
+}
+
+export {
+  getCurrentTime as now,
 }

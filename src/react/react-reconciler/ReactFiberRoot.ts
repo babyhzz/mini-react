@@ -48,14 +48,15 @@ function FiberRootNode(
   this.next = null;
   this.callbackNode = null;
   this.callbackPriority = NoLane;
+  this.eventTimes = createLaneMap(NoLanes);
   this.expirationTimes = createLaneMap(NoTimestamp);
 
   this.pendingLanes = NoLanes;
   // this.suspendedLanes = NoLanes;
   // this.pingedLanes = NoLanes;
   // this.warmLanes = NoLanes;
-  // this.expiredLanes = NoLanes;
-  // this.finishedLanes = NoLanes;
+  this.expiredLanes = NoLanes;
+  this.finishedLanes = NoLanes;
   // this.errorRecoveryDisabledLanes = NoLanes;
   // this.shellSuspendCounter = 0;
 
@@ -82,6 +83,7 @@ export function createFiberRoot(
   root.current = uninitializedFiber;
   uninitializedFiber.stateNode = root;
 
+  // hc initialChildren 为 null
   const initialState: RootState = {
     element: initialChildren
   };

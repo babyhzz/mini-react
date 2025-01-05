@@ -42,25 +42,6 @@ function getContextForSubtree(
   // return parentContext;
 }
 
-function findHostInstance(component: Object): PublicInstance | null {
-  const fiber = getInstance(component);
-  if (fiber === undefined) {
-    if (typeof component.render === "function") {
-      throw new Error("Unable to find node on an unmounted component.");
-    } else {
-      const keys = Object.keys(component).join(",");
-      throw new Error(
-        `Argument appears to not be a ReactComponent. Keys: ${keys}`
-      );
-    }
-  }
-  const hostFiber = findCurrentHostFiber(fiber);
-  if (hostFiber === null) {
-    return null;
-  }
-  return getPublicInstance(hostFiber.stateNode);
-}
-
 export function createContainer(
   containerInfo: Container,
   tag: RootTag
@@ -93,6 +74,7 @@ export function updateContainer(
   // being called "element".
   update.payload = { element };
 
+  // hc 初始化阶段 callback 为 undefined
   callback = callback === undefined ? null : callback;
   if (callback !== null) {
     // @ts-ignore hc
@@ -106,6 +88,3 @@ export function updateContainer(
 
   return lane;
 }
-
-export { };
-

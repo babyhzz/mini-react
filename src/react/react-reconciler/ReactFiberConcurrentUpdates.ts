@@ -7,34 +7,23 @@
  * @flow
  */
 
-import type {Fiber, FiberRoot} from './ReactInternalTypes';
-import type {
-  UpdateQueue as HookQueue,
-  Update as HookUpdate,
-} from './ReactFiberHooks';
+import type { Fiber, FiberRoot } from "./ReactInternalTypes";
 import type {
   SharedQueue as ClassQueue,
   Update as ClassUpdate,
-} from './ReactFiberClassUpdateQueue';
-import type {Lane, Lanes} from './ReactFiberLane';
-import type {OffscreenInstance} from './ReactFiberActivityComponent';
+} from "./ReactFiberClassUpdateQueue";
+import type { Lane, Lanes } from "./ReactFiberLane";
 
-import {
-  warnAboutUpdateOnNotYetMountedFiberInDEV,
-  throwIfInfiniteUpdateLoopDetected,
-  getWorkInProgressRoot,
-} from './ReactFiberWorkLoop';
-import {NoLane, NoLanes, mergeLanes, markHiddenUpdate} from './ReactFiberLane';
-import {HostRoot, OffscreenComponent} from './ReactWorkTags';
-import {OffscreenVisible} from './ReactFiberActivityComponent';
+import { NoLane, NoLanes, mergeLanes } from "./ReactFiberLane";
+import { HostRoot, OffscreenComponent } from "./ReactWorkTags";
 
 export type ConcurrentUpdate = {
-  next: ConcurrentUpdate,
-  lane: Lane,
+  next: ConcurrentUpdate;
+  lane: Lane;
 };
 
 type ConcurrentQueue = {
-  pending: ConcurrentUpdate | null,
+  pending: ConcurrentUpdate | null;
 };
 
 // If a render is in progress, and we receive an update from a concurrent event,
@@ -89,7 +78,7 @@ function enqueueUpdate(
   fiber: Fiber,
   queue: ConcurrentQueue | null,
   update: ConcurrentUpdate | null,
-  lane: Lane,
+  lane: Lane
 ) {
   // Don't update the `childLanes` on the return path yet. If we already in
   // the middle of rendering, wait until after it has completed.
@@ -110,49 +99,11 @@ function enqueueUpdate(
   }
 }
 
-export function enqueueConcurrentHookUpdate<S, A>(
-  fiber: Fiber,
-  queue: HookQueue<S, A>,
-  update: HookUpdate<S, A>,
-  lane: Lane,
-): FiberRoot | null {
-  const concurrentQueue: ConcurrentQueue = (queue: any);
-  const concurrentUpdate: ConcurrentUpdate = (update: any);
-  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
-  return getRootForUpdatedFiber(fiber);
-}
-
-export function enqueueConcurrentHookUpdateAndEagerlyBailout<S, A>(
-  fiber: Fiber,
-  queue: HookQueue<S, A>,
-  update: HookUpdate<S, A>,
-): void {
-  // This function is used to queue an update that doesn't need a rerender. The
-  // only reason we queue it is in case there's a subsequent higher priority
-  // update that causes it to be rebased.
-  const lane = NoLane;
-  const concurrentQueue: ConcurrentQueue = (queue: any);
-  const concurrentUpdate: ConcurrentUpdate = (update: any);
-  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
-
-  // Usually we can rely on the upcoming render phase to process the concurrent
-  // queue. However, since this is a bail out, we're not scheduling any work
-  // here. So the update we just queued will leak until something else happens
-  // to schedule work (if ever).
-  //
-  // Check if we're currently in the middle of rendering a tree, and if not,
-  // process the queue immediately to prevent a leak.
-  const isConcurrentlyRendering = getWorkInProgressRoot() !== null;
-  if (!isConcurrentlyRendering) {
-    finishQueueingConcurrentUpdates();
-  }
-}
-
 export function enqueueConcurrentClassUpdate(
   fiber: Fiber,
   queue: ClassQueue,
   update: ClassUpdate,
-  lane: Lane,
+  lane: Lane
 ): FiberRoot | null {
   // @ts-ignore
   const concurrentQueue: ConcurrentQueue = queue;
@@ -165,32 +116,16 @@ export function enqueueConcurrentClassUpdate(
 
 export function enqueueConcurrentRenderForLane(
   fiber: Fiber,
-  lane: Lane,
+  lane: Lane
 ): FiberRoot | null {
   enqueueUpdate(fiber, null, null, lane);
   return getRootForUpdatedFiber(fiber);
 }
 
-// Calling this function outside this module should only be done for backwards
-// compatibility and should always be accompanied by a warning.
-export function unsafe_markUpdateLaneFromFiberToRoot(
-  sourceFiber: Fiber,
-  lane: Lane,
-): FiberRoot | null {
-  // NOTE: For Hyrum's Law reasons, if an infinite update loop is detected, it
-  // should throw before `markUpdateLaneFromFiberToRoot` is called. But this is
-  // undefined behavior and we can change it if we need to; it just so happens
-  // that, at the time of this writing, there's an internal product test that
-  // happens to rely on this.
-  const root = getRootForUpdatedFiber(sourceFiber);
-  markUpdateLaneFromFiberToRoot(sourceFiber, null, lane);
-  return root;
-}
-
 function markUpdateLaneFromFiberToRoot(
   sourceFiber: Fiber,
   update: ConcurrentUpdate | null,
-  lane: Lane,
+  lane: Lane
 ): void {
   // Update the source fiber's lanes
   sourceFiber.lanes = mergeLanes(sourceFiber.lanes, lane);
@@ -198,8 +133,6 @@ function markUpdateLaneFromFiberToRoot(
   if (alternate !== null) {
     alternate.lanes = mergeLanes(alternate.lanes, lane);
   }
-  // Walk the parent path to the root and update the child lanes.
-  let isHidden = false;
   let parent = sourceFiber.return;
   let node = sourceFiber;
   while (parent !== null) {
@@ -209,40 +142,8 @@ function markUpdateLaneFromFiberToRoot(
       alternate.childLanes = mergeLanes(alternate.childLanes, lane);
     }
 
-    if (parent.tag === OffscreenComponent) {
-      // Check if this offscreen boundary is currently hidden.
-      //
-      // The instance may be null if the Offscreen parent was unmounted. Usually
-      // the parent wouldn't be reachable in that case because we disconnect
-      // fibers from the tree when they are deleted. However, there's a weird
-      // edge case where setState is called on a fiber that was interrupted
-      // before it ever mounted. Because it never mounts, it also never gets
-      // deleted. Because it never gets deleted, its return pointer never gets
-      // disconnected. Which means it may be attached to a deleted Offscreen
-      // parent node. (This discovery suggests it may be better for memory usage
-      // if we don't attach the `return` pointer until the commit phase, though
-      // in order to do that we'd need some other way to track the return
-      // pointer during the initial render, like on the stack.)
-      //
-      // This case is always accompanied by a warning, but we still need to
-      // account for it. (There may be other cases that we haven't discovered,
-      // too.)
-      const offscreenInstance: OffscreenInstance | null = parent.stateNode;
-      if (
-        offscreenInstance !== null &&
-        !(offscreenInstance._visibility & OffscreenVisible)
-      ) {
-        isHidden = true;
-      }
-    }
-
     node = parent;
     parent = parent.return;
-  }
-
-  if (isHidden && update !== null && node.tag === HostRoot) {
-    const root: FiberRoot = node.stateNode;
-    markHiddenUpdate(root, update, lane);
   }
 }
 

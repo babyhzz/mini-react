@@ -7,6 +7,7 @@
  * @flow
  */
 
+import { ReactElement } from '../shared/ReactTypes';
 import { NoFlags, StaticMask } from './ReactFiberFlags';
 import { Lanes, NoLanes } from './ReactFiberLane';
 import { Fiber } from './ReactInternalTypes';
@@ -148,16 +149,21 @@ export function createHostRootFiber(): Fiber {
   return createFiber(HostRoot, null, null, mode);
 }
 
+function shouldConstruct(Component: Function) {
+  const prototype = Component.prototype;
+  return !!(prototype && prototype.isReactComponent);
+}
+
 // TODO: Get rid of this helper. Only createFiberFromElement should exist.
 export function createFiberFromTypeAndProps(
   type: any, // React$ElementType
   key: null | string,
   pendingProps: any,
-  owner: null | ReactComponentInfo | Fiber,
+  owner: null | Fiber,
   mode: TypeOfMode,
   lanes: Lanes,
 ): Fiber {
-  let fiberTag = FunctionComponent;
+  let fiberTag;
   // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
   let resolvedType = type;
   if (typeof type === 'function') {
@@ -297,3 +303,22 @@ export function createFiberFromTypeAndProps(
   return fiber;
 }
 
+export function createFiberFromElement(
+  element: ReactElement,
+  mode: TypeOfMode,
+  lanes: Lanes,
+): Fiber {
+  let owner = null;
+  const type = element.type;
+  const key = element.key;
+  const pendingProps = element.props;
+  const fiber = createFiberFromTypeAndProps(
+    type,
+    key,
+    pendingProps,
+    owner,
+    mode,
+    lanes,
+  );
+  return fiber;
+}

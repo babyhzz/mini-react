@@ -1,155 +1,36 @@
-/**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- * @flow
- */
+import type { Lane, Lanes } from "./ReactFiberLane";
+import type { Fiber, FiberRoot } from "./ReactInternalTypes";
 
-// UpdateQueue is a linked list of prioritized updates.
-//
-// Like fibers, update queues come in pairs: a current queue, which represents
-// the visible state of the screen, and a work-in-progress queue, which can be
-// mutated and processed asynchronously before it is committed — a form of
-// double buffering. If a work-in-progress render is discarded before finishing,
-// we create a new work-in-progress by cloning the current queue.
-//
-// Both queues share a persistent, singly-linked list structure. To schedule an
-// update, we append it to the end of both queues. Each queue maintains a
-// pointer to first update in the persistent list that hasn't been processed.
-// The work-in-progress pointer always has a position equal to or greater than
-// the current queue, since we always work on that one. The current queue's
-// pointer is only updated during the commit phase, when we swap in the
-// work-in-progress.
-//
-// For example:
-//
-//   Current pointer:           A - B - C - D - E - F
-//   Work-in-progress pointer:              D - E - F
-//                                          ^
-//                                          The work-in-progress queue has
-//                                          processed more updates than current.
-//
-// The reason we append to both queues is because otherwise we might drop
-// updates without ever processing them. For example, if we only add updates to
-// the work-in-progress queue, some updates could be lost whenever a work-in
-// -progress render restarts by cloning from current. Similarly, if we only add
-// updates to the current queue, the updates will be lost whenever an already
-// in-progress queue commits and swaps with the current queue. However, by
-// adding to both queues, we guarantee that the update will be part of the next
-// work-in-progress. (And because the work-in-progress queue becomes the
-// current queue once it commits, there's no danger of applying the same
-// update twice.)
-//
-// Prioritization
-// --------------
-//
-// Updates are not sorted by priority, but by insertion; new updates are always
-// appended to the end of the list.
-//
-// The priority is still important, though. When processing the update queue
-// during the render phase, only the updates with sufficient priority are
-// included in the result. If we skip an update because it has insufficient
-// priority, it remains in the queue to be processed later, during a lower
-// priority render. Crucially, all updates subsequent to a skipped update also
-// remain in the queue *regardless of their priority*. That means high priority
-// updates are sometimes processed twice, at two separate priorities. We also
-// keep track of a base state, that represents the state before the first
-// update in the queue is applied.
-//
-// For example:
-//
-//   Given a base state of '', and the following queue of updates
-//
-//     A1 - B2 - C1 - D2
-//
-//   where the number indicates the priority, and the update is applied to the
-//   previous state by appending a letter, React will process these updates as
-//   two separate renders, one per distinct priority level:
-//
-//   First render, at priority 1:
-//     Base state: ''
-//     Updates: [A1, C1]
-//     Result state: 'AC'
-//
-//   Second render, at priority 2:
-//     Base state: 'A'            <-  The base state does not include C1,
-//                                    because B2 was skipped.
-//     Updates: [B2, C1, D2]      <-  C1 was rebased on top of B2
-//     Result state: 'ABCD'
-//
-// Because we process updates in insertion order, and rebase high priority
-// updates when preceding updates are skipped, the final result is deterministic
-// regardless of priority. Intermediate state may vary according to system
-// resources, but the final state is always the same.
+import { NoLane, NoLanes } from "./ReactFiberLane";
 
-import type {Fiber, FiberRoot} from './ReactInternalTypes';
-import type {Lanes, Lane} from './ReactFiberLane';
+import { Callback } from "./ReactFiberFlags";
 
-import {
-  NoLane,
-  NoLanes,
-  OffscreenLane,
-  isSubsetOfLanes,
-  mergeLanes,
-  removeLanes,
-  isTransitionLane,
-  intersectLanes,
-  markRootEntangled,
-} from './ReactFiberLane';
-import {
-  enterDisallowedContextReadInDEV,
-  exitDisallowedContextReadInDEV,
-} from './ReactFiberNewContext';
-import {
-  Callback,
-  Visibility,
-  ShouldCapture,
-  DidCapture,
-} from './ReactFiberFlags';
-import getComponentNameFromFiber from './getComponentNameFromFiber';
-
-import {debugRenderPhaseSideEffectsForStrictMode} from 'shared/ReactFeatureFlags';
-
-import {StrictLegacyMode} from './ReactTypeOfMode';
-import {
-  markSkippedUpdateLanes,
-  isUnsafeClassRenderPhaseUpdate,
-  getWorkInProgressRootRenderLanes,
-} from './ReactFiberWorkLoop';
-import {
-  enqueueConcurrentClassUpdate,
-  unsafe_markUpdateLaneFromFiberToRoot,
-} from './ReactFiberConcurrentUpdates';
-import {setIsStrictModeForDevtools} from './ReactFiberDevToolsHook';
-
-import assign from 'shared/assign';
+import { enqueueConcurrentClassUpdate } from "./ReactFiberConcurrentUpdates";
 
 export type Update = {
   // TODO: Temporary field. Will remove this by storing a map of
   // transition -> event time on the root.
-  eventTime: number,
-  lane: Lane,
+  eventTime: number;
+  lane: Lane;
 
-  tag: 0 | 1 | 2 | 3,
-  payload: any,
-  callback: (() => any) | null,
+  tag: 0 | 1 | 2 | 3;
+  payload: any;
+  callback: (() => any) | null;
 
-  next: Update | null,
+  next: Update | null;
 };
 
 export type SharedQueue = {
-  pending: Update | null,
-  lanes: Lanes,
+  pending: Update | null;
+  lanes: Lanes;
 };
 
 export type UpdateQueue = {
-  baseState: any,
-  firstBaseUpdate: Update| null,
-  lastBaseUpdate: Update | null,
-  shared: SharedQueue,
-  effects: Array<Update> | null,
+  baseState: any;
+  firstBaseUpdate: Update | null;
+  lastBaseUpdate: Update | null;
+  shared: SharedQueue;
+  effects: Array<Update> | null;
 };
 
 export const UpdateState = 0;
@@ -176,20 +57,17 @@ export function initializeUpdateQueue(fiber: Fiber): void {
   fiber.updateQueue = queue;
 }
 
-export function cloneUpdateQueue<State>(
-  current: Fiber,
-  workInProgress: Fiber,
-): void {
+export function cloneUpdateQueue(current: Fiber, workInProgress: Fiber): void {
   // Clone the update queue from current. Unless it's already a clone.
-  const queue: UpdateQueue<State> = (workInProgress.updateQueue: any);
-  const currentQueue: UpdateQueue<State> = (current.updateQueue: any);
+  const queue: UpdateQueue = workInProgress.updateQueue;
+  const currentQueue: UpdateQueue = current.updateQueue;
   if (queue === currentQueue) {
-    const clone: UpdateQueue<State> = {
+    const clone: UpdateQueue = {
       baseState: currentQueue.baseState,
       firstBaseUpdate: currentQueue.firstBaseUpdate,
       lastBaseUpdate: currentQueue.lastBaseUpdate,
       shared: currentQueue.shared,
-      callbacks: null,
+      effects: currentQueue.effects,
     };
     workInProgress.updateQueue = clone;
   }
@@ -212,7 +90,7 @@ export function createUpdate(eventTime: number, lane: Lane): Update {
 export function enqueueUpdate(
   fiber: Fiber,
   update: Update,
-  lane: Lane,
+  lane: Lane
 ): FiberRoot | null {
   const updateQueue = fiber.updateQueue;
   if (updateQueue === null) {
@@ -224,151 +102,29 @@ export function enqueueUpdate(
   return enqueueConcurrentClassUpdate(fiber, sharedQueue, update, lane);
 }
 
-export function enqueueCapturedUpdate<State>(
+function getStateFromUpdate(
   workInProgress: Fiber,
-  capturedUpdate: Update<State>,
-) {
-  // Captured updates are updates that are thrown by a child during the render
-  // phase. They should be discarded if the render is aborted. Therefore,
-  // we should only put them on the work-in-progress queue, not the current one.
-  let queue: UpdateQueue<State> = (workInProgress.updateQueue: any);
-
-  // Check if the work-in-progress queue is a clone.
-  const current = workInProgress.alternate;
-  if (current !== null) {
-    const currentQueue: UpdateQueue<State> = (current.updateQueue: any);
-    if (queue === currentQueue) {
-      // The work-in-progress queue is the same as current. This happens when
-      // we bail out on a parent fiber that then captures an error thrown by
-      // a child. Since we want to append the update only to the work-in
-      // -progress queue, we need to clone the updates. We usually clone during
-      // processUpdateQueue, but that didn't happen in this case because we
-      // skipped over the parent when we bailed out.
-      let newFirst = null;
-      let newLast = null;
-      const firstBaseUpdate = queue.firstBaseUpdate;
-      if (firstBaseUpdate !== null) {
-        // Loop through the updates and clone them.
-        let update: Update<State> = firstBaseUpdate;
-        do {
-          const clone: Update<State> = {
-            lane: update.lane,
-
-            tag: update.tag,
-            payload: update.payload,
-            // When this update is rebased, we should not fire its
-            // callback again.
-            callback: null,
-
-            next: null,
-          };
-          if (newLast === null) {
-            newFirst = newLast = clone;
-          } else {
-            newLast.next = clone;
-            newLast = clone;
-          }
-          // $FlowFixMe[incompatible-type] we bail out when we get a null
-          update = update.next;
-        } while (update !== null);
-
-        // Append the captured update the end of the cloned list.
-        if (newLast === null) {
-          newFirst = newLast = capturedUpdate;
-        } else {
-          newLast.next = capturedUpdate;
-          newLast = capturedUpdate;
-        }
-      } else {
-        // There are no base updates.
-        newFirst = newLast = capturedUpdate;
-      }
-      queue = {
-        baseState: currentQueue.baseState,
-        firstBaseUpdate: newFirst,
-        lastBaseUpdate: newLast,
-        shared: currentQueue.shared,
-        callbacks: currentQueue.callbacks,
-      };
-      workInProgress.updateQueue = queue;
-      return;
-    }
-  }
-
-  // Append the update to the end of the list.
-  const lastBaseUpdate = queue.lastBaseUpdate;
-  if (lastBaseUpdate === null) {
-    queue.firstBaseUpdate = capturedUpdate;
-  } else {
-    lastBaseUpdate.next = capturedUpdate;
-  }
-  queue.lastBaseUpdate = capturedUpdate;
-}
-
-function getStateFromUpdate<State>(
-  workInProgress: Fiber,
-  queue: UpdateQueue<State>,
-  update: Update<State>,
-  prevState: State,
+  queue: UpdateQueue,
+  update: Update,
+  prevState: any,
   nextProps: any,
-  instance: any,
+  instance: any
 ): any {
   switch (update.tag) {
     case ReplaceState: {
       const payload = update.payload;
-      if (typeof payload === 'function') {
-        // Updater function
-        if (__DEV__) {
-          enterDisallowedContextReadInDEV();
-        }
-        const nextState = payload.call(instance, prevState, nextProps);
-        if (__DEV__) {
-          if (
-            debugRenderPhaseSideEffectsForStrictMode &&
-            workInProgress.mode & StrictLegacyMode
-          ) {
-            setIsStrictModeForDevtools(true);
-            try {
-              payload.call(instance, prevState, nextProps);
-            } finally {
-              setIsStrictModeForDevtools(false);
-            }
-          }
-          exitDisallowedContextReadInDEV();
-        }
-        return nextState;
+      if (typeof payload === "function") {
+        return payload.call(instance, prevState, nextProps);
       }
-      // State object
       return payload;
-    }
-    case CaptureUpdate: {
-      workInProgress.flags =
-        (workInProgress.flags & ~ShouldCapture) | DidCapture;
     }
     // Intentional fallthrough
     case UpdateState: {
       const payload = update.payload;
       let partialState;
-      if (typeof payload === 'function') {
+      if (typeof payload === "function") {
         // Updater function
-        if (__DEV__) {
-          enterDisallowedContextReadInDEV();
-        }
         partialState = payload.call(instance, prevState, nextProps);
-        if (__DEV__) {
-          if (
-            debugRenderPhaseSideEffectsForStrictMode &&
-            workInProgress.mode & StrictLegacyMode
-          ) {
-            setIsStrictModeForDevtools(true);
-            try {
-              payload.call(instance, prevState, nextProps);
-            } finally {
-              setIsStrictModeForDevtools(false);
-            }
-          }
-          exitDisallowedContextReadInDEV();
-        }
       } else {
         // Partial state object
         partialState = payload;
@@ -378,7 +134,7 @@ function getStateFromUpdate<State>(
         return prevState;
       }
       // Merge the partial state and the previous state.
-      return assign({}, prevState, partialState);
+      return Object.assign({}, prevState, partialState);
     }
     case ForceUpdate: {
       hasForceUpdate = true;
@@ -390,38 +146,17 @@ function getStateFromUpdate<State>(
 
 let didReadFromEntangledAsyncAction: boolean = false;
 
-// Each call to processUpdateQueue should be accompanied by a call to this. It's
-// only in a separate function because in updateHostRoot, it must happen after
-// all the context stacks have been pushed to, to prevent a stack mismatch. A
-// bit unfortunate.
-export function suspendIfUpdateReadFromEntangledAsyncAction() {
-  // Check if this update is part of a pending async action. If so, we'll
-  // need to suspend until the action has finished, so that it's batched
-  // together with future updates in the same action.
-  // TODO: Once we support hooks inside useMemo (or an equivalent
-  // memoization boundary like Forget), hoist this logic so that it only
-  // suspends if the memo boundary produces a new value.
-  if (didReadFromEntangledAsyncAction) {
-    const entangledActionThenable = peekEntangledActionThenable();
-    if (entangledActionThenable !== null) {
-      // TODO: Instead of the throwing the thenable directly, throw a
-      // special object like `use` does so we can detect if it's captured
-      // by userspace.
-      throw entangledActionThenable;
-    }
-  }
-}
 
-export function processUpdateQueue<State>(
+export function processUpdateQueue(
   workInProgress: Fiber,
   props: any,
   instance: any,
-  renderLanes: Lanes,
+  renderLanes: Lanes
 ): void {
   didReadFromEntangledAsyncAction = false;
 
   // This is always non-null on a ClassComponent or HostRoot
-  const queue: UpdateQueue<State> = (workInProgress.updateQueue: any);
+  const queue: UpdateQueue = workInProgress.updateQueue;
 
   hasForceUpdate = false;
 
@@ -454,7 +189,7 @@ export function processUpdateQueue<State>(
     const current = workInProgress.alternate;
     if (current !== null) {
       // This is always non-null on a ClassComponent or HostRoot
-      const currentQueue: UpdateQueue<State> = (current.updateQueue: any);
+      const currentQueue: UpdateQueue = current.updateQueue;
       const currentLastBaseUpdate = currentQueue.lastBaseUpdate;
       if (currentLastBaseUpdate !== lastBaseUpdate) {
         if (currentLastBaseUpdate === null) {
@@ -477,94 +212,32 @@ export function processUpdateQueue<State>(
 
     let newBaseState = null;
     let newFirstBaseUpdate = null;
-    let newLastBaseUpdate: null | Update<State> = null;
+    let newLastBaseUpdate: null | Update = null;
 
-    let update: Update<State> = firstBaseUpdate;
+    let update: Update = firstBaseUpdate;
     do {
-      // An extra OffscreenLane bit is added to updates that were made to
-      // a hidden tree, so that we can distinguish them from updates that were
-      // already there when the tree was hidden.
-      const updateLane = removeLanes(update.lane, OffscreenLane);
-      const isHiddenUpdate = updateLane !== update.lane;
-
-      // Check if this update was made while the tree was hidden. If so, then
-      // it's not a "base" update and we should disregard the extra base lanes
-      // that were added to renderLanes when we entered the Offscreen tree.
-      const shouldSkipUpdate = isHiddenUpdate
-        ? !isSubsetOfLanes(getWorkInProgressRootRenderLanes(), updateLane)
-        : !isSubsetOfLanes(renderLanes, updateLane);
-
-      if (shouldSkipUpdate) {
-        // Priority is insufficient. Skip this update. If this is the first
-        // skipped update, the previous update/state is the new base
-        // update/state.
-        const clone: Update<State> = {
-          lane: updateLane,
-
-          tag: update.tag,
-          payload: update.payload,
-          callback: update.callback,
-
-          next: null,
-        };
-        if (newLastBaseUpdate === null) {
-          newFirstBaseUpdate = newLastBaseUpdate = clone;
-          newBaseState = newState;
+      // Process this update.
+      newState = getStateFromUpdate(
+        workInProgress,
+        queue,
+        update,
+        newState,
+        props,
+        instance
+      );
+      const callback = update.callback;
+      if (
+        callback !== null &&
+        // If the update was already committed, we should not queue its
+        // callback again.
+        update.lane !== NoLane
+      ) {
+        workInProgress.flags |= Callback;
+        const effects = queue.effects;
+        if (effects === null) {
+          queue.effects = [update];
         } else {
-          newLastBaseUpdate = newLastBaseUpdate.next = clone;
-        }
-        // Update the remaining priority in the queue.
-        newLanes = mergeLanes(newLanes, updateLane);
-      } else {
-        // This update does have sufficient priority.
-
-        // Check if this update is part of a pending async action. If so,
-        // we'll need to suspend until the action has finished, so that it's
-        // batched together with future updates in the same action.
-        if (updateLane !== NoLane && updateLane === peekEntangledActionLane()) {
-          didReadFromEntangledAsyncAction = true;
-        }
-
-        if (newLastBaseUpdate !== null) {
-          const clone: Update<State> = {
-            // This update is going to be committed so we never want uncommit
-            // it. Using NoLane works because 0 is a subset of all bitmasks, so
-            // this will never be skipped by the check above.
-            lane: NoLane,
-
-            tag: update.tag,
-            payload: update.payload,
-
-            // When this update is rebased, we should not fire its
-            // callback again.
-            callback: null,
-
-            next: null,
-          };
-          newLastBaseUpdate = newLastBaseUpdate.next = clone;
-        }
-
-        // Process this update.
-        newState = getStateFromUpdate(
-          workInProgress,
-          queue,
-          update,
-          newState,
-          props,
-          instance,
-        );
-        const callback = update.callback;
-        if (callback !== null) {
-          workInProgress.flags |= Callback;
-          if (isHiddenUpdate) {
-            workInProgress.flags |= Visibility;
-          }
-          const callbacks = queue.callbacks;
-          if (callbacks === null) {
-            queue.callbacks = [callback];
-          } else {
-            callbacks.push(callback);
-          }
+          effects.push(update);
         }
       }
       // $FlowFixMe[incompatible-type] we bail out when we get a null
@@ -579,8 +252,7 @@ export function processUpdateQueue<State>(
           const lastPendingUpdate = pendingQueue;
           // Intentionally unsound. Pending updates form a circular list, but we
           // unravel them when transferring them to the base queue.
-          const firstPendingUpdate =
-            ((lastPendingUpdate.next: any): Update<State>);
+          const firstPendingUpdate = lastPendingUpdate.next;
           lastPendingUpdate.next = null;
           update = firstPendingUpdate;
           queue.lastBaseUpdate = lastPendingUpdate;
@@ -593,7 +265,7 @@ export function processUpdateQueue<State>(
       newBaseState = newState;
     }
 
-    queue.baseState = ((newBaseState: any): State);
+    queue.baseState = newBaseState;
     queue.firstBaseUpdate = newFirstBaseUpdate;
     queue.lastBaseUpdate = newLastBaseUpdate;
 
@@ -602,30 +274,10 @@ export function processUpdateQueue<State>(
       // zero once the queue is empty.
       queue.shared.lanes = NoLanes;
     }
-
-    // Set the remaining expiration time to be whatever is remaining in the queue.
-    // This should be fine because the only two other things that contribute to
-    // expiration time are props and context. We're already in the middle of the
-    // begin phase by the time we start processing the queue, so we've already
-    // dealt with the props. Context in components that specify
-    // shouldComponentUpdate is tricky; but we'll have to account for
-    // that regardless.
-    markSkippedUpdateLanes(newLanes);
+    
     workInProgress.lanes = newLanes;
     workInProgress.memoizedState = newState;
   }
-
-}
-
-function callCallback(callback: () => mixed, context: any) {
-  if (typeof callback !== 'function') {
-    throw new Error(
-      'Invalid argument passed as callback. Expected a function. Instead ' +
-        `received: ${callback}`,
-    );
-  }
-
-  callback.call(context);
 }
 
 export function resetHasForceUpdateBeforeProcessing() {
@@ -634,52 +286,4 @@ export function resetHasForceUpdateBeforeProcessing() {
 
 export function checkHasForceUpdateAfterProcessing(): boolean {
   return hasForceUpdate;
-}
-
-export function deferHiddenCallbacks<State>(
-  updateQueue: UpdateQueue<State>,
-): void {
-  // When an update finishes on a hidden component, its callback should not
-  // be fired until/unless the component is made visible again. Stash the
-  // callback on the shared queue object so it can be fired later.
-  const newHiddenCallbacks = updateQueue.callbacks;
-  if (newHiddenCallbacks !== null) {
-    const existingHiddenCallbacks = updateQueue.shared.hiddenCallbacks;
-    if (existingHiddenCallbacks === null) {
-      updateQueue.shared.hiddenCallbacks = newHiddenCallbacks;
-    } else {
-      updateQueue.shared.hiddenCallbacks =
-        existingHiddenCallbacks.concat(newHiddenCallbacks);
-    }
-  }
-}
-
-export function commitHiddenCallbacks<State>(
-  updateQueue: UpdateQueue<State>,
-  context: any,
-): void {
-  // This component is switching from hidden -> visible. Commit any callbacks
-  // that were previously deferred.
-  const hiddenCallbacks = updateQueue.shared.hiddenCallbacks;
-  if (hiddenCallbacks !== null) {
-    updateQueue.shared.hiddenCallbacks = null;
-    for (let i = 0; i < hiddenCallbacks.length; i++) {
-      const callback = hiddenCallbacks[i];
-      callCallback(callback, context);
-    }
-  }
-}
-
-export function commitCallbacks<State>(
-  updateQueue: UpdateQueue<State>,
-  context: any,
-): void {
-  const callbacks = updateQueue.callbacks;
-  if (callbacks !== null) {
-    updateQueue.callbacks = null;
-    for (let i = 0; i < callbacks.length; i++) {
-      const callback = callbacks[i];
-      callCallback(callback, context);
-    }
-  }
 }

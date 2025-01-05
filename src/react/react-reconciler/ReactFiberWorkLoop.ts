@@ -1,7 +1,7 @@
 import { getCurrentEventPriority } from "../react-dom/ReactDOMHostConfig";
 import ReactCurrentDispatcher from "../react/ReactCurrentDispatcher";
 import ReactCurrentOwner from "../react/ReactCurrentOwner";
-import { cancelCallback, scheduleCallback,  } from "../scheduler/Scheduler";
+import { cancelCallback, now, scheduleCallback,  } from "../scheduler/Scheduler";
 import {
   ImmediatePriority as ImmediateSchedulerPriority,
   UserBlockingPriority as UserBlockingSchedulerPriority,
@@ -10,8 +10,9 @@ import {
   PriorityLevel,
 } from '../scheduler/SchedulerPriorities';
 
-import { ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, getCurrentUpdatePriority, IdleEventPriority, lanesToEventPriority } from "./ReactEventPriorities";
+import { ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, getCurrentUpdatePriority, IdleEventPriority, lanesToEventPriority, setCurrentUpdatePriority } from "./ReactEventPriorities";
 import { createWorkInProgress } from "./ReactFiber";
+import { beginWork } from "./ReactFiberBeginWork";
 import { finishQueueingConcurrentUpdates } from "./ReactFiberConcurrentUpdates";
 import { ContextOnlyDispatcher } from "./ReactFiberHooks";
 import { getHighestPriorityLane, getNextLanes, includesBlockingLane, includesExpiredLane, Lane, Lanes, markRootUpdated, NoLane, NoLanes, NoTimestamp } from "./ReactFiberLane";
@@ -172,6 +173,47 @@ export function flushPassiveEffects(): boolean {
   return false;
 }
 
+function commitRoot(
+  root: FiberRoot,
+  recoverableErrors: null | Array<CapturedValue<mixed>>,
+  transitions: Array<Transition> | null,
+) {
+  // TODO: This no longer makes any sense. We already wrap the mutation and
+  // layout phases. Should be able to remove.
+  const previousUpdateLanePriority = getCurrentUpdatePriority();
+
+  try {
+    setCurrentUpdatePriority(DiscreteEventPriority);
+    commitRootImpl(
+      root,
+      recoverableErrors,
+      transitions,
+      previousUpdateLanePriority,
+    );
+  } finally {
+    setCurrentUpdatePriority(previousUpdateLanePriority);
+  }
+
+  return null;
+}
+
+function finishConcurrentRender(root, exitStatus, lanes) {
+  switch (exitStatus) {
+    case RootCompleted: {
+      // The work completed. Ready to commit.
+      commitRoot(
+        root,
+        null, // workInProgressRootRecoverableErrors,
+        null, // workInProgressTransitions,
+      );
+      break;
+    }
+    default: {
+      throw new Error('Unknown root exit status.');
+    }
+  }
+}
+
 function pushDispatcher() {
   const prevDispatcher = ReactCurrentDispatcher.current;
   ReactCurrentDispatcher.current = ContextOnlyDispatcher;
@@ -233,8 +275,13 @@ function performUnitOfWork(unitOfWork: Fiber): void {
 function workLoopSync() {
   // Already timed out, so perform work without checking if we need to yield.
   while (workInProgress !== null) {
+    console.log('%c [ performUnitOfWork ]-279', 'font-size:13px; background:pink; color:#bf2c9f;', performUnitOfWork)
     performUnitOfWork(workInProgress);
   }
+}
+
+function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
+  // TODO 后续添加
 }
 
 function renderRootSync(root: FiberRoot, lanes: Lanes) {
@@ -321,77 +368,12 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
     ? renderRootConcurrent(root, lanes)
     : renderRootSync(root, lanes);
   if (exitStatus !== RootInProgress) {
-    if (exitStatus === RootErrored) {
-      // If something threw an error, try rendering one more time. We'll
-      // render synchronously to block concurrent data mutations, and we'll
-      // includes all pending updates are included. If it still fails after
-      // the second attempt, we'll give up and commit the resulting tree.
-      const errorRetryLanes = getLanesToRetrySynchronouslyOnError(root);
-      if (errorRetryLanes !== NoLanes) {
-        lanes = errorRetryLanes;
-        exitStatus = recoverFromConcurrentError(root, errorRetryLanes);
-      }
-    }
-    if (exitStatus === RootFatalErrored) {
-      const fatalError = workInProgressRootFatalError;
-      prepareFreshStack(root, NoLanes);
-      markRootSuspended(root, lanes);
-      ensureRootIsScheduled(root, now());
-      throw fatalError;
-    }
-
-    if (exitStatus === RootDidNotComplete) {
-      // The render unwound without completing the tree. This happens in special
-      // cases where need to exit the current render without producing a
-      // consistent tree or committing.
-      //
-      // This should only happen during a concurrent render, not a discrete or
-      // synchronous update. We should have already checked for this when we
-      // unwound the stack.
-      markRootSuspended(root, lanes);
-    } else {
-      // The render completed.
-
-      // Check if this render may have yielded to a concurrent event, and if so,
-      // confirm that any newly rendered stores are consistent.
-      // TODO: It's possible that even a concurrent render may never have yielded
-      // to the main thread, if it was fast enough, or if it expired. We could
-      // skip the consistency check in that case, too.
-      const renderWasConcurrent = !includesBlockingLane(root, lanes);
-      const finishedWork: Fiber = (root.current.alternate: any);
-      if (
-        renderWasConcurrent &&
-        !isRenderConsistentWithExternalStores(finishedWork)
-      ) {
-        // A store was mutated in an interleaved event. Render again,
-        // synchronously, to block further mutations.
-        exitStatus = renderRootSync(root, lanes);
-
-        // We need to check again if something threw
-        if (exitStatus === RootErrored) {
-          const errorRetryLanes = getLanesToRetrySynchronouslyOnError(root);
-          if (errorRetryLanes !== NoLanes) {
-            lanes = errorRetryLanes;
-            exitStatus = recoverFromConcurrentError(root, errorRetryLanes);
-            // We assume the tree is now consistent because we didn't yield to any
-            // concurrent events.
-          }
-        }
-        if (exitStatus === RootFatalErrored) {
-          const fatalError = workInProgressRootFatalError;
-          prepareFreshStack(root, NoLanes);
-          markRootSuspended(root, lanes);
-          ensureRootIsScheduled(root, now());
-          throw fatalError;
-        }
-      }
-
-      // We now have a consistent tree. The next step is either to commit it,
-      // or, if something suspended, wait to commit it after a timeout.
-      root.finishedWork = finishedWork;
-      root.finishedLanes = lanes;
-      finishConcurrentRender(root, exitStatus, lanes);
-    }
+    // The render completed.
+    const finishedWork: Fiber = root.current.alternate;
+    // We now have a consistent tree. The next step is either to commit it
+    root.finishedWork = finishedWork;
+    root.finishedLanes = lanes;
+    finishConcurrentRender(root, exitStatus, lanes);
   }
 
   ensureRootIsScheduled(root, now());

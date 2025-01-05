@@ -3,17 +3,18 @@ import {
   DiscreteEventPriority,
   EventPriority,
   DefaultEventPriority,
-  IdleEventPriority
+  IdleEventPriority,
 } from "../react-reconciler/ReactEventPriorities";
 import { DOMEventName } from "./DOMEventNames";
+import { getCurrentPriorityLevel as getCurrentSchedulerPriorityLevel } from "../scheduler/Scheduler";
+
 import {
-  getCurrentPriorityLevel as getCurrentSchedulerPriorityLevel,
   IdlePriority as IdleSchedulerPriority,
   ImmediatePriority as ImmediateSchedulerPriority,
   LowPriority as LowSchedulerPriority,
   NormalPriority as NormalSchedulerPriority,
   UserBlockingPriority as UserBlockingSchedulerPriority,
-} from "../scheduler/Scheduler";
+} from "../scheduler/SchedulerPriorities";
 
 export function getEventPriority(domEventName: DOMEventName): EventPriority {
   switch (domEventName) {

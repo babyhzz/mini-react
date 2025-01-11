@@ -1,8 +1,15 @@
 import { Container } from "./ReactFiberConfig";
-import { createCursor, push, StackCursor } from "./ReactFiberStack";
+import { createCursor, pop, push, StackCursor } from "./ReactFiberStack";
 import { Fiber } from "./ReactInternalTypes";
 declare class NoContextT {}
 const NO_CONTEXT: NoContextT = {};
+
+// const contextStackCursor: StackCursor<HostContext | NoContextT> = createCursor(
+//   NO_CONTEXT,
+// );
+const contextFiberStackCursor: StackCursor<Fiber | NoContextT> = createCursor(
+  NO_CONTEXT,
+);
 
 // @ts-ignore
 const rootInstanceStackCursor: StackCursor<
@@ -18,4 +25,10 @@ export function pushHostContainer(fiber: Fiber, nextRootInstance: Container) {
 export function getRootHostContainer(): Container {
   const rootInstance = rootInstanceStackCursor.current;
   return rootInstance;
+}
+
+export function popHostContainer(fiber: Fiber) {
+  // pop(contextStackCursor);
+  pop(contextFiberStackCursor);
+  pop(rootInstanceStackCursor);
 }

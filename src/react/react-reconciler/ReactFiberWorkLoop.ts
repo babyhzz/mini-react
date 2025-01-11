@@ -13,6 +13,7 @@ import {
 import { ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, getCurrentUpdatePriority, IdleEventPriority, lanesToEventPriority, setCurrentUpdatePriority } from "./ReactEventPriorities";
 import { createWorkInProgress } from "./ReactFiber";
 import { beginWork } from "./ReactFiberBeginWork";
+import { completeWork } from "./ReactFiberCompleteWork";
 import { finishQueueingConcurrentUpdates } from "./ReactFiberConcurrentUpdates";
 import { Incomplete, NoFlags } from "./ReactFiberFlags";
 import { ContextOnlyDispatcher } from "./ReactFiberHooks";
@@ -275,51 +276,7 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
         return;
       }
     } else {
-      // This fiber did not complete because something threw. Pop values off
-      // the stack without entering the complete phase. If this is a boundary,
-      // capture values if possible.
-      const next = unwindWork(current, completedWork, subtreeRenderLanes);
-
-      // Because this fiber did not complete, don't reset its lanes.
-
-      if (next !== null) {
-        // If completing this work spawned new work, do that next. We'll come
-        // back here again.
-        // Since we're restarting, remove anything that is not a host effect
-        // from the effect tag.
-        next.flags &= HostEffectMask;
-        workInProgress = next;
-        return;
-      }
-
-      if (
-        enableProfilerTimer &&
-        (completedWork.mode & ProfileMode) !== NoMode
-      ) {
-        // Record the render duration for the fiber that errored.
-        stopProfilerTimerIfRunningAndRecordDelta(completedWork, false);
-
-        // Include the time spent working on failed children before continuing.
-        let actualDuration = completedWork.actualDuration;
-        let child = completedWork.child;
-        while (child !== null) {
-          actualDuration += child.actualDuration;
-          child = child.sibling;
-        }
-        completedWork.actualDuration = actualDuration;
-      }
-
-      if (returnFiber !== null) {
-        // Mark the parent fiber as incomplete and clear its subtree flags.
-        returnFiber.flags |= Incomplete;
-        returnFiber.subtreeFlags = NoFlags;
-        returnFiber.deletions = null;
-      } else {
-        // We've unwound all the way to the root.
-        workInProgressRootExitStatus = RootDidNotComplete;
-        workInProgress = null;
-        return;
-      }
+      // hc 删除了逻辑
     }
 
     const siblingFiber = completedWork.sibling;

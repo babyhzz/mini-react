@@ -64,3 +64,10 @@ export function createInstance(
   updateFiberProps(domElement, props);
   return domElement;
 }
+
+export function appendInitialChild(
+  parentInstance: Instance,
+  child: Instance | TextInstance,
+): void {
+  parentInstance.appendChild(child);
+}

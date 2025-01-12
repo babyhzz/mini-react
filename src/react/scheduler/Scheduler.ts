@@ -350,6 +350,19 @@ export function cancelCallback(task: Task) {
   task.callback = null;
 }
 
+// export function requestPaint() {
+//   if (
+//     enableIsInputPending &&
+//     navigator !== undefined &&
+//     navigator.scheduling !== undefined &&
+//     navigator.scheduling.isInputPending !== undefined
+//   ) {
+//     needsPaint = true;
+//   }
+
+//   // Since we yield every frame regardless, `requestPaint` has no effect.
+// }
+
 export {
   getCurrentTime as now,
 }

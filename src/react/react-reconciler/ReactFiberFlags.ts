@@ -75,3 +75,23 @@ export const MountPassiveDev = /*              */ 0b1000000000000000000000000000
 // This allows certain concepts to persist without recalculating them,
 // e.g. whether a subtree contains passive effects or portals.
 export const StaticMask = LayoutStatic | PassiveStatic | RefStatic;
+
+
+export const BeforeMutationMask =
+  // TODO: Remove Update flag from before mutation phase by re-landing Visibility
+  // flag logic (see #20043)
+  Update |
+  Snapshot;
+
+export const MutationMask =
+  Placement |
+  Update |
+  ChildDeletion |
+  ContentReset |
+  Ref |
+  Hydrating |
+  Visibility;
+export const LayoutMask = Update | Callback | Ref | Visibility;
+
+// TODO: Split into PassiveMountMask and PassiveUnmountMask
+export const PassiveMask = Passive | ChildDeletion;

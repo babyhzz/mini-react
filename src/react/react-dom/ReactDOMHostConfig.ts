@@ -5,6 +5,7 @@ import { Container } from "../react-reconciler/ReactFiberConfig";
 import { createElement } from "./ReactDOMComponent";
 import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
 import { Fiber } from "../react-reconciler/ReactInternalTypes";
+import { COMMENT_NODE } from "./HTMLNodeType";
 
 export type Type = string;
 export type Props = {
@@ -26,6 +27,8 @@ export type Instance = Element;
 export type TextInstance = Text;
 export type PublicInstance = Element | Text;
 
+export const supportsMutation = true;
+
 export function getCurrentEventPriority(): EventPriority {
   const currentEvent = window.event;
   if (currentEvent === undefined) {
@@ -44,6 +47,47 @@ export function shouldSetTextContent(type: string, props: Props): boolean {
       props.dangerouslySetInnerHTML !== null &&
       props.dangerouslySetInnerHTML.__html != null)
   );
+}
+
+export function appendChildToContainer(
+  container: Container,
+  child: Instance | TextInstance,
+): void {
+  let parentNode;
+  if (container.nodeType === COMMENT_NODE) {
+    parentNode = container.parentNode;
+    parentNode.insertBefore(child, container);
+  } else {
+    parentNode = container;
+    parentNode.appendChild(child);
+  }
+}
+
+export function insertInContainerBefore(
+  container: Container,
+  child: Instance | TextInstance,
+  beforeChild: Instance | TextInstance,
+): void {
+  if (container.nodeType === COMMENT_NODE) {
+    container.parentNode.insertBefore(child, beforeChild);
+  } else {
+    container.insertBefore(child, beforeChild);
+  }
+}
+
+export function insertBefore(
+  parentInstance: Instance,
+  child: Instance | TextInstance,
+  beforeChild: Instance | TextInstance,
+): void {
+  parentInstance.insertBefore(child, beforeChild);
+}
+
+export function appendChild(
+  parentInstance: Instance,
+  child: Instance | TextInstance,
+): void {
+  parentInstance.appendChild(child);
 }
 
 export function createInstance(

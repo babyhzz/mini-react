@@ -13,6 +13,7 @@ import {
 import { ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, EventPriority, getCurrentUpdatePriority, IdleEventPriority, lanesToEventPriority, setCurrentUpdatePriority } from "./ReactEventPriorities";
 import { createWorkInProgress } from "./ReactFiber";
 import { beginWork } from "./ReactFiberBeginWork";
+import { commitMutationEffects } from "./ReactFiberCommitWork";
 import { completeWork } from "./ReactFiberCompleteWork";
 import { finishQueueingConcurrentUpdates, getConcurrentlyUpdatedLanes } from "./ReactFiberConcurrentUpdates";
 import { BeforeMutationMask, Incomplete, LayoutMask, MutationMask, NoFlags, PassiveMask } from "./ReactFiberFlags";
@@ -443,7 +444,7 @@ function commitRootImpl(
 
     // The next phase is the mutation phase, where we mutate the host tree.
     // hc hooks?
-    // commitMutationEffects(root, finishedWork, lanes);
+    commitMutationEffects(root, finishedWork, lanes);
 
     // hc 重置了什么？
     // resetAfterCommit(root.containerInfo);
@@ -579,6 +580,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
     // The render completed.
     const finishedWork: Fiber = root.current.alternate;
     // We now have a consistent tree. The next step is either to commit it
+    // hc commit阶段
     root.finishedWork = finishedWork;
     root.finishedLanes = lanes;
     finishConcurrentRender(root, exitStatus, lanes);

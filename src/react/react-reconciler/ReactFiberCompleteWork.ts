@@ -1,5 +1,5 @@
-import { appendInitialChild, createInstance, Instance } from "../react-dom/ReactDOMHostConfig";
-import { ForceClientRender, NoFlags, Snapshot, StaticMask } from "./ReactFiberFlags";
+import { appendInitialChild, createInstance, finalizeInitialChildren, Instance } from "../react-dom/ReactDOMHostConfig";
+import { ForceClientRender, NoFlags, Snapshot, StaticMask, Update } from "./ReactFiberFlags";
 import { getRootHostContainer, popHostContainer } from "./ReactFiberHostContext";
 import { Lanes, mergeLanes, NoLanes } from "./ReactFiberLane";
 import { RootState } from "./ReactFiberRoot";
@@ -18,6 +18,13 @@ import {
   MemoComponent,
   SimpleMemoComponent,
 } from "./ReactWorkTags";
+
+function markUpdate(workInProgress: Fiber) {
+  // Tag the fiber with an update effect. This turns a Placement into
+  // a PlacementAndUpdate.
+  workInProgress.flags |= Update;
+}
+
 
 function appendAllChildren(
   parent: Instance,
@@ -193,18 +200,18 @@ export function completeWork(
         // Certain renderers require commit-time effects for initial mount.
         // (eg DOM renderer supports auto-focus for certain elements).
         // Make sure such renderers get scheduled for later work.
-        // hc 下面两个的含义是啥？
-        // if (
-        //   finalizeInitialChildren(
-        //     instance,
-        //     type,
-        //     newProps,
-        //     rootContainerInstance,
-        //     currentHostContext
-        //   )
-        // ) {
-        //   markUpdate(workInProgress);
-        // }
+        // hc 下面的函数构建了纯字符串的children
+        if (
+          finalizeInitialChildren(
+            instance,
+            type,
+            newProps,
+            rootContainerInstance,
+            null
+          )
+        ) {
+          markUpdate(workInProgress);
+        }
 
         // if (workInProgress.ref !== null) {
         //   // If there is a ref on a host node we need to schedule a callback

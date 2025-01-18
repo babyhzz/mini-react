@@ -2,7 +2,7 @@ import { DOMEventName } from "./DOMEventNames";
 import { DefaultEventPriority, EventPriority } from "../react-reconciler/ReactEventPriorities";
 import { getEventPriority } from "./ReactDOMEventListener";
 import { Container } from "../react-reconciler/ReactFiberConfig";
-import { createElement } from "./ReactDOMComponent";
+import { createElement, setInitialProperties } from "./ReactDOMComponent";
 import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
 import { Fiber } from "../react-reconciler/ReactInternalTypes";
 import { COMMENT_NODE } from "./HTMLNodeType";
@@ -114,4 +114,26 @@ export function appendInitialChild(
   child: Instance | TextInstance,
 ): void {
   parentInstance.appendChild(child);
+}
+
+
+export function finalizeInitialChildren(
+  domElement: Instance,
+  type: string,
+  props: Props,
+  rootContainerInstance: Container,
+  hostContext: string,
+): boolean {
+  setInitialProperties(domElement, type, props, rootContainerInstance);
+  switch (type) {
+    case 'button':
+    case 'input':
+    case 'select':
+    case 'textarea':
+      return !!props.autoFocus;
+    case 'img':
+      return true;
+    default:
+      return false;
+  }
 }

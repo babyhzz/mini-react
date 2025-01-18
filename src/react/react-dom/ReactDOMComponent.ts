@@ -1,5 +1,15 @@
+import { setValueForStyles } from "./CSSPropertyOperations";
 import { getIntrinsicNamespace, HTML_NAMESPACE } from "./DOMNamespaces";
 import { DOCUMENT_NODE } from "./HTMLNodeType";
+import setTextContent from "./setTextContent";
+
+const DANGEROUSLY_SET_INNER_HTML = 'dangerouslySetInnerHTML';
+const SUPPRESS_CONTENT_EDITABLE_WARNING = 'suppressContentEditableWarning';
+const SUPPRESS_HYDRATION_WARNING = 'suppressHydrationWarning';
+const AUTOFOCUS = 'autoFocus';
+const CHILDREN = 'children';
+const STYLE = 'style';
+const HTML = '__html';
 
 function getOwnerDocumentFromRootContainer(
   rootContainerElement: Element | Document | DocumentFragment,
@@ -69,4 +79,206 @@ export function createElement(
   }
 
   return domElement;
+}
+
+
+
+function isCustomComponent(tagName: string, props: Object) {
+  if (tagName.indexOf('-') === -1) {
+    return typeof props.is === 'string';
+  }
+  switch (tagName) {
+    // These are reserved SVG and MathML elements.
+    // We don't mind this list too much because we expect it to never grow.
+    // The alternative is to track the namespace in a few places which is convoluted.
+    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    case 'annotation-xml':
+    case 'color-profile':
+    case 'font-face':
+    case 'font-face-src':
+    case 'font-face-uri':
+    case 'font-face-format':
+    case 'font-face-name':
+    case 'missing-glyph':
+      return false;
+    default:
+      return true;
+  }
+}
+
+
+function setInitialDOMProperties(
+  tag: string,
+  domElement: Element,
+  rootContainerElement: Element | Document | DocumentFragment,
+  nextProps: Object,
+  isCustomComponentTag: boolean,
+): void {
+  for (const propKey in nextProps) {
+    if (!nextProps.hasOwnProperty(propKey)) {
+      continue;
+    }
+    const nextProp = nextProps[propKey];
+    if (propKey === STYLE) {
+      // Relies on `updateStylesByID` not mutating `styleUpdates`.
+      setValueForStyles(domElement, nextProp);
+    } else if (propKey === DANGEROUSLY_SET_INNER_HTML) {
+      const nextHtml = nextProp ? nextProp[HTML] : undefined;
+      if (nextHtml != null) {
+        // setInnerHTML(domElement, nextHtml);
+      }
+    } else if (propKey === CHILDREN) {
+      if (typeof nextProp === 'string') {
+        // Avoid setting initial textContent when the text is empty. In IE11 setting
+        // textContent on a <textarea> will cause the placeholder to not
+        // show within the <textarea> until it has been focused and blurred again.
+        // https://github.com/facebook/react/issues/6731#issuecomment-254874553
+        const canSetTextContent = tag !== 'textarea' || nextProp !== '';
+        if (canSetTextContent) {
+          setTextContent(domElement, nextProp);
+        }
+      } else if (typeof nextProp === 'number') {
+        setTextContent(domElement, '' + nextProp);
+      }
+    } else if (
+      propKey === SUPPRESS_CONTENT_EDITABLE_WARNING ||
+      propKey === SUPPRESS_HYDRATION_WARNING
+    ) {
+      // Noop
+    } 
+    // else if (propKey === AUTOFOCUS) {
+    //   // We polyfill it separately on the client during commit.
+    //   // We could have excluded it in the property list instead of
+    //   // adding a special case here, but then it wouldn't be emitted
+    //   // on server rendering (but we *do* want to emit it in SSR).
+    // } else if (registrationNameDependencies.hasOwnProperty(propKey)) {
+    //   if (nextProp != null) {
+    //     if (propKey === 'onScroll') {
+    //       listenToNonDelegatedEvent('scroll', domElement);
+    //     }
+    //   }
+    // } else if (nextProp != null) {
+    //   setValueForProperty(domElement, propKey, nextProp, isCustomComponentTag);
+    // }
+  }
+}
+
+export function setInitialProperties(
+  domElement: Element,
+  tag: string,
+  rawProps: Object,
+  rootContainerElement: Element | Document | DocumentFragment,
+): void {
+  const isCustomComponentTag = isCustomComponent(tag, rawProps);
+
+  // TODO: Make sure that we check isMounted before firing any of these events.
+  let props: Object;
+  switch (tag) {
+    // case 'dialog':
+    //   listenToNonDelegatedEvent('cancel', domElement);
+    //   listenToNonDelegatedEvent('close', domElement);
+    //   props = rawProps;
+    //   break;
+    // case 'iframe':
+    // case 'object':
+    // case 'embed':
+    //   // We listen to this event in case to ensure emulated bubble
+    //   // listeners still fire for the load event.
+    //   listenToNonDelegatedEvent('load', domElement);
+    //   props = rawProps;
+    //   break;
+    // case 'video':
+    // case 'audio':
+    //   // We listen to these events in case to ensure emulated bubble
+    //   // listeners still fire for all the media events.
+    //   for (let i = 0; i < mediaEventTypes.length; i++) {
+    //     listenToNonDelegatedEvent(mediaEventTypes[i], domElement);
+    //   }
+    //   props = rawProps;
+    //   break;
+    // case 'source':
+    //   // We listen to this event in case to ensure emulated bubble
+    //   // listeners still fire for the error event.
+    //   listenToNonDelegatedEvent('error', domElement);
+    //   props = rawProps;
+    //   break;
+    // case 'img':
+    // case 'image':
+    // case 'link':
+    //   // We listen to these events in case to ensure emulated bubble
+    //   // listeners still fire for error and load events.
+    //   listenToNonDelegatedEvent('error', domElement);
+    //   listenToNonDelegatedEvent('load', domElement);
+    //   props = rawProps;
+    //   break;
+    // case 'details':
+    //   // We listen to this event in case to ensure emulated bubble
+    //   // listeners still fire for the toggle event.
+    //   listenToNonDelegatedEvent('toggle', domElement);
+    //   props = rawProps;
+    //   break;
+    // case 'input':
+    //   ReactDOMInputInitWrapperState(domElement, rawProps);
+    //   props = ReactDOMInputGetHostProps(domElement, rawProps);
+    //   // We listen to this event in case to ensure emulated bubble
+    //   // listeners still fire for the invalid event.
+    //   listenToNonDelegatedEvent('invalid', domElement);
+    //   break;
+    // case 'option':
+    //   ReactDOMOptionValidateProps(domElement, rawProps);
+    //   props = rawProps;
+    //   break;
+    // case 'select':
+    //   ReactDOMSelectInitWrapperState(domElement, rawProps);
+    //   props = ReactDOMSelectGetHostProps(domElement, rawProps);
+    //   // We listen to this event in case to ensure emulated bubble
+    //   // listeners still fire for the invalid event.
+    //   listenToNonDelegatedEvent('invalid', domElement);
+    //   break;
+    // case 'textarea':
+    //   ReactDOMTextareaInitWrapperState(domElement, rawProps);
+    //   props = ReactDOMTextareaGetHostProps(domElement, rawProps);
+    //   // We listen to this event in case to ensure emulated bubble
+    //   // listeners still fire for the invalid event.
+    //   listenToNonDelegatedEvent('invalid', domElement);
+    //   break;
+    default:
+      props = rawProps;
+  }
+
+
+  setInitialDOMProperties(
+    tag,
+    domElement,
+    rootContainerElement,
+    props,
+    isCustomComponentTag,
+  );
+
+  // switch (tag) {
+  //   case 'input':
+  //     // TODO: Make sure we check if this is still unmounted or do any clean
+  //     // up necessary since we never stop tracking anymore.
+  //     track((domElement: any));
+  //     ReactDOMInputPostMountWrapper(domElement, rawProps, false);
+  //     break;
+  //   case 'textarea':
+  //     // TODO: Make sure we check if this is still unmounted or do any clean
+  //     // up necessary since we never stop tracking anymore.
+  //     track((domElement: any));
+  //     ReactDOMTextareaPostMountWrapper(domElement, rawProps);
+  //     break;
+  //   case 'option':
+  //     ReactDOMOptionPostMountWrapper(domElement, rawProps);
+  //     break;
+  //   case 'select':
+  //     ReactDOMSelectPostMountWrapper(domElement, rawProps);
+  //     break;
+  //   default:
+  //     if (typeof props.onClick === 'function') {
+  //       // TODO: This cast may not be sound for SVG, MathML or custom elements.
+  //       trapClickOnNonInteractiveElement(((domElement: any): HTMLElement));
+  //     }
+  //     break;
+  // }
 }

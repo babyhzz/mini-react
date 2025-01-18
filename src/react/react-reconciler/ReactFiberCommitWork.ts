@@ -44,8 +44,6 @@ function commitMutationEffectsOnFiber(
   const current = finishedWork.alternate;
   const flags = finishedWork.flags;
 
-  debugger;
-
   // The effect flag should be checked *after* we refine the type of fiber,
   // because the fiber tag is more specific. An exception is any flag related
   // to reconcilation, because those can be set on all fiber types.

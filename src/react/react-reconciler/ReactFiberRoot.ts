@@ -28,6 +28,10 @@ import { Container } from './ReactFiberConfig';
 
 export type RootState = {
   element: any,
+  isDehydrated: boolean,
+  cache: Cache,
+  // pendingSuspenseBoundaries: PendingSuspenseBoundaries | null,
+  // transitions: Set<Transition> | null,
 };
 
 function FiberRootNode(

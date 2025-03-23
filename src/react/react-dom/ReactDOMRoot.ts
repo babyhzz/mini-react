@@ -19,6 +19,8 @@ import {
   updateContainer
 } from "../react-reconciler/ReactFiberReconciler";
 import { ConcurrentRoot } from "../react-reconciler/ReactRootTags";
+import { COMMENT_NODE } from "./HTMLNodeType";
+import { listenToAllSupportedEvents } from "./events/DOMPluginEventSystem";
 
 export type RootType = {
   render(children: ReactNodeList): void;
@@ -38,8 +40,12 @@ export function createRoot(
   const root: FiberRoot = createContainer(container, ConcurrentRoot);
   markContainerAsRoot(root.current, container);
 
-  // TODO 事件相关，暂先不处理
-  // listenToAllSupportedEvents(container);
+  const rootContainerElement: Document | Element | DocumentFragment =
+  container.nodeType === COMMENT_NODE
+    ? container.parentNode as any
+    : container;
+
+  listenToAllSupportedEvents(rootContainerElement);
 
   // @ts-ignore
   return new ReactDOMRoot(root);

@@ -1,8 +1,10 @@
-import {get as getInstance} from '../shared/ReactInstanceMap';
-import { Hydrating, NoFlags, Placement } from './ReactFiberFlags';
-import { Fiber } from './ReactInternalTypes';
-import { HostRoot } from './ReactWorkTags';
-
+import { SuspenseInstance } from "../react-dom/ReactDOMHostConfig";
+import { get as getInstance } from "../shared/ReactInstanceMap";
+import { Container } from "./ReactFiberConfig";
+import { Hydrating, NoFlags, Placement } from "./ReactFiberFlags";
+import { SuspenseState } from "./ReactFiberSuspenseComponent";
+import { Fiber } from "./ReactInternalTypes";
+import { HostRoot, SuspenseComponent } from "./ReactWorkTags";
 
 export function getNearestMountedFiber(fiber: Fiber): null | Fiber {
   let node = fiber;
@@ -36,10 +38,34 @@ export function getNearestMountedFiber(fiber: Fiber): null | Fiber {
   return null;
 }
 
+export function getSuspenseInstanceFromFiber(
+  fiber: Fiber
+): null | SuspenseInstance {
+  if (fiber.tag === SuspenseComponent) {
+    let suspenseState: SuspenseState | null = fiber.memoizedState;
+    if (suspenseState === null) {
+      const current = fiber.alternate;
+      if (current !== null) {
+        suspenseState = current.memoizedState;
+      }
+    }
+    if (suspenseState !== null) {
+      return suspenseState.dehydrated;
+    }
+  }
+  return null;
+}
+
 export function isMounted(component: any): boolean {
   const fiber: Fiber = getInstance(component);
   if (!fiber) {
     return false;
   }
   return getNearestMountedFiber(fiber) === fiber;
+}
+
+export function getContainerFromFiber(fiber: Fiber): null | Container {
+  return fiber.tag === HostRoot
+    ? (fiber.stateNode.containerInfo as Container)
+    : null;
 }

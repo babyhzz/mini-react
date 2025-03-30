@@ -55,11 +55,13 @@ function createSyntheticEvent(Interface: EventInterfaceType) {
     this.currentTarget = null;
 
     for (const propName in Interface) {
+      // hc: 排除继承的属性
       if (!Interface.hasOwnProperty(propName)) {
         continue;
       }
       const normalize = Interface[propName];
       if (normalize) {
+        // hc: 如果是函数则调用，Interface只会存在0和函数的情况
         this[propName] = normalize(nativeEvent);
       } else {
         this[propName] = nativeEvent[propName];
@@ -81,6 +83,7 @@ function createSyntheticEvent(Interface: EventInterfaceType) {
 
   Object.assign(SyntheticBaseEvent.prototype, {
     preventDefault: function() {
+      // hc: DOM标准的一部分
       this.defaultPrevented = true;
       const event = this.nativeEvent;
       if (!event) {
@@ -89,11 +92,9 @@ function createSyntheticEvent(Interface: EventInterfaceType) {
 
       if (event.preventDefault) {
         event.preventDefault();
-        // $FlowFixMe - flow is not aware of `unknown` in IE
-        // hc 这个unknown的含义是什么
-      } else if (typeof event.returnValue !== 'unknown') {
-        event.returnValue = false;
       }
+
+      // hc: 可能更为了React内部逻辑
       this.isDefaultPrevented = functionThatReturnsTrue;
     },
 
@@ -105,14 +106,6 @@ function createSyntheticEvent(Interface: EventInterfaceType) {
 
       if (event.stopPropagation) {
         event.stopPropagation();
-        // $FlowFixMe - flow is not aware of `unknown` in IE
-      } else if (typeof event.cancelBubble !== 'unknown') {
-        // The ChangeEventPlugin registers a "propertychange" event for
-        // IE. This event does not support bubbling or cancelling, and
-        // any references to cancelBubble throw "Member not found".  A
-        // typeof check of "unknown" circumvents this issue (and is also
-        // IE specific).
-        event.cancelBubble = true;
       }
 
       this.isPropagationStopped = functionThatReturnsTrue;
@@ -422,7 +415,7 @@ function getEventModifierState(nativeEvent) {
  * @interface KeyboardEvent
  * @see http://www.w3.org/TR/DOM-Level-3-Events/
  */
-const KeyboardEventInterface = {
+const KeyboardEventInterface: EventInterfaceType = {
   ...UIEventInterface,
   key: getEventKey,
   code: 0,
@@ -479,7 +472,7 @@ export const SyntheticKeyboardEvent = createSyntheticEvent(
  * @interface PointerEvent
  * @see http://www.w3.org/TR/pointerevents/
  */
-const PointerEventInterface = {
+const PointerEventInterface: EventInterfaceType = {
   ...MouseEventInterface,
   pointerId: 0,
   width: 0,
@@ -500,7 +493,7 @@ export const SyntheticPointerEvent = createSyntheticEvent(
  * @interface TouchEvent
  * @see http://www.w3.org/TR/touch-events/
  */
-const TouchEventInterface = {
+const TouchEventInterface: EventInterfaceType = {
   ...UIEventInterface,
   touches: 0,
   targetTouches: 0,
@@ -518,7 +511,7 @@ export const SyntheticTouchEvent = createSyntheticEvent(TouchEventInterface);
  * @see http://www.w3.org/TR/2009/WD-css3-transitions-20090320/#transition-events-
  * @see https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent
  */
-const TransitionEventInterface = {
+const TransitionEventInterface: EventInterfaceType = {
   ...EventInterface,
   propertyName: 0,
   elapsedTime: 0,
@@ -532,7 +525,7 @@ export const SyntheticTransitionEvent = createSyntheticEvent(
  * @interface WheelEvent
  * @see http://www.w3.org/TR/DOM-Level-3-Events/
  */
-const WheelEventInterface = {
+const WheelEventInterface: EventInterfaceType = {
   ...MouseEventInterface,
   deltaX(event) {
     return 'deltaX' in event

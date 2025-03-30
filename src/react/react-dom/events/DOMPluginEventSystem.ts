@@ -57,7 +57,6 @@ export const registrationNameDependencies = {};
 // hc: 原始代码这里是通过代码检查方式确定，这里默认为true
 const passiveBrowserEventsSupported = true;
 
-
 // TODO: remove top-level side effect.
 SimpleEventPlugin.registerEvents();
 EnterLeaveEventPlugin.registerEvents();

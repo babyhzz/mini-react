@@ -51,9 +51,7 @@ export function createContainer(
 
 export function updateContainer(
   element: ReactNodeList,
-  container: FiberRoot,
-  parentComponent?: any,
-  callback?: Function | null
+  container: FiberRoot 
 ): Lane {
   const current = container.current;
 
@@ -61,25 +59,13 @@ export function updateContainer(
   const eventTime = requestEventTime();
   const lane = requestUpdateLane(current);
 
-  // hc: context 相关注释掉先
-  const context = getContextForSubtree(parentComponent);
-  if (container.context === null) {
-    container.context = context;
-  } else {
-    container.pendingContext = context;
-  }
+  // hc: 按逻辑缩减后的代码
+  container.context = {};
 
   const update = createUpdate(eventTime, lane);
   // Caution: React DevTools currently depends on this property
   // being called "element".
   update.payload = { element };
-
-  // hc 初始化阶段 callback 为 undefined
-  callback = callback === undefined ? null : callback;
-  if (callback !== null) {
-    // @ts-ignore hc
-    update.callback = callback;
-  }
 
   const root = enqueueUpdate(current, update, lane);
   if (root !== null) {

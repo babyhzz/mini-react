@@ -7,12 +7,12 @@
  * @flow
  */
 
-import { ReactElement } from '../shared/ReactTypes';
+import { ReactElement, ReactFragment } from '../shared/ReactTypes';
 import { NoFlags, StaticMask } from './ReactFiberFlags';
 import { Lanes, NoLanes } from './ReactFiberLane';
 import { Fiber } from './ReactInternalTypes';
 import { ConcurrentMode, TypeOfMode } from './ReactTypeOfMode';
-import { ClassComponent, HostComponent, HostRoot, WorkTag } from './ReactWorkTags';
+import { ClassComponent, Fragment, HostComponent, HostRoot, HostText, WorkTag } from './ReactWorkTags';
 
 function FiberNode(
   tag: WorkTag,
@@ -77,15 +77,9 @@ function createFiber(
   return new FiberNode(tag, pendingProps, key, mode);
 }
 
-// This is used to create an alternate fiber to do work on.
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   let workInProgress = current.alternate;
   if (workInProgress === null) {
-    // We use a double buffering pooling technique because we know that we'll
-    // only ever need at most two versions of a tree. We pool the "other" unused
-    // node that we're free to reuse. This is lazily created to avoid allocating
-    // extra objects for things that are never updated. It also allow us to
-    // reclaim the extra memory if needed.
     workInProgress = createFiber(
       current.tag,
       pendingProps,
@@ -96,6 +90,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     workInProgress.type = current.type;
     workInProgress.stateNode = current.stateNode;
 
+    // hc: 这里进行了 alternate 的赋值，双向循环引用
     workInProgress.alternate = current;
     current.alternate = workInProgress;
   } else {
@@ -201,5 +196,26 @@ export function createFiberFromElement(
     mode,
     lanes,
   );
+  return fiber;
+}
+
+export function createFiberFromText(
+  content: string,
+  mode: TypeOfMode,
+  lanes: Lanes,
+): Fiber {
+  const fiber = createFiber(HostText, content, null, mode);
+  fiber.lanes = lanes;
+  return fiber;
+}
+
+export function createFiberFromFragment(
+  elements: ReactFragment,
+  mode: TypeOfMode,
+  lanes: Lanes,
+  key: null | string,
+): Fiber {
+  const fiber = createFiber(Fragment, elements, key, mode);
+  fiber.lanes = lanes;
   return fiber;
 }

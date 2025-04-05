@@ -60,7 +60,7 @@ function extractEvents(
     // then it's because we couldn't dispatch against this target previously
     // so we have to do it now instead.
     const related =
-      (nativeEvent: any).relatedTarget || (nativeEvent: any).fromElement;
+      (nativeEvent as any).relatedTarget || (nativeEvent as any).fromElement;
     if (related) {
       // If the related node is managed by React, we can assume that we have
       // already dispatched the corresponding events during its mouseout.

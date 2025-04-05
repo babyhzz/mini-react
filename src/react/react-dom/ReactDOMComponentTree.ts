@@ -15,12 +15,10 @@ const internalHoistableMarker = '__reactMarker$' + randomKey;
 
 
 export function markContainerAsRoot(hostRoot: Fiber, node: Container): void {
-  // @ts-ignore
   node[internalContainerInstanceKey] = hostRoot;
 }
 
 export function unmarkContainerAsRoot(node: Container): void {
-  // @ts-ignore
   node[internalContainerInstanceKey] = null;
 }
 

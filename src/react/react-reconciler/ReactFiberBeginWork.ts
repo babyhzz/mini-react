@@ -1,12 +1,15 @@
 import { shouldSetTextContent } from "../react-dom/ReactDOMHostConfig";
 import ReactSharedInternals from "../react/ReactSharedInternals";
 import { mountChildFibers, reconcileChildFibers } from "./ReactChildFiber";
-import { constructClassInstance, mountClassInstance } from "./ReactFiberClassComponent";
+import {
+  constructClassInstance,
+  mountClassInstance,
+} from "./ReactFiberClassComponent";
 import {
   cloneUpdateQueue,
   processUpdateQueue,
 } from "./ReactFiberClassUpdateQueue";
-import { ContentReset, Ref } from "./ReactFiberFlags";
+import { ContentReset, PerformedWork, Ref } from "./ReactFiberFlags";
 import { pushHostContainer } from "./ReactFiberHostContext";
 import { Lanes, NoLanes } from "./ReactFiberLane";
 import { resolveDefaultProps } from "./ReactFiberLazyComponent";
@@ -45,37 +48,26 @@ let didWarnAboutRevealOrder;
 let didWarnAboutTailOptions;
 let didWarnAboutDefaultPropsOnFunctionComponent;
 
-
-
 export function reconcileChildren(
   current: Fiber | null,
   workInProgress: Fiber,
   nextChildren: any,
-  renderLanes: Lanes,
+  renderLanes: Lanes
 ) {
   if (current === null) {
-    // If this is a fresh new component that hasn't been rendered yet, we
-    // won't update its child set by applying minimal side-effects. Instead,
-    // we will add them all to the child before it gets rendered. That means
-    // we can optimize this reconciliation pass by not tracking side-effects.
+    // hc: 组件初次挂载
     workInProgress.child = mountChildFibers(
       workInProgress,
       null,
       nextChildren,
-      renderLanes,
+      renderLanes
     );
   } else {
-    // If the current child is the same as the work in progress, it means that
-    // we haven't yet started any work on these children. Therefore, we use
-    // the clone algorithm to create a copy of all the current children.
-
-    // If we had any progressed work already, that is invalid at this point so
-    // let's throw it out.
     workInProgress.child = reconcileChildFibers(
       workInProgress,
       current.child,
       nextChildren,
-      renderLanes,
+      renderLanes
     );
   }
 }
@@ -96,7 +88,7 @@ function finishClassComponent(
   Component: any,
   shouldUpdate: boolean,
   hasContext: boolean,
-  renderLanes: Lanes,
+  renderLanes: Lanes
 ) {
   // Refs should update even if shouldComponentUpdate returns false
   markRef(current, workInProgress);
@@ -124,17 +116,48 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   pushHostRootContext(workInProgress);
 
   const nextProps = workInProgress.pendingProps;
-  const prevState = workInProgress.memoizedState;
-  const prevChildren = prevState.element;
   cloneUpdateQueue(current, workInProgress);
   processUpdateQueue(workInProgress, nextProps, null, renderLanes);
 
   const nextState: RootState = workInProgress.memoizedState;
-  const root: FiberRoot = workInProgress.stateNode;
-
   // Caution: React DevTools currently depends on this property
   // being called "element".
   const nextChildren = nextState.element;
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  return workInProgress.child;
+}
+
+function updateFunctionComponent(
+  current,
+  workInProgress,
+  Component,
+  nextProps: any,
+  renderLanes
+) {
+  let context;
+  let nextChildren;
+  let hasId;
+
+  // hc: 暂不学习
+  // prepareToReadContext(workInProgress, renderLanes);
+
+  nextChildren = renderWithHooks(
+    current,
+    workInProgress,
+    Component,
+    nextProps,
+    context,
+    renderLanes
+  );
+  hasId = checkDidRenderIdHook();
+
+  if (current !== null && !didReceiveUpdate) {
+    bailoutHooks(current, workInProgress, renderLanes);
+    return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
+  }
+
+  // React DevTools reads this flag.
+  workInProgress.flags |= PerformedWork;
   reconcileChildren(current, workInProgress, nextChildren, renderLanes);
   return workInProgress.child;
 }
@@ -144,7 +167,7 @@ function updateClassComponent(
   workInProgress: Fiber,
   Component: any,
   nextProps: any,
-  renderLanes: Lanes,
+  renderLanes: Lanes
 ) {
   const instance = workInProgress.stateNode;
   let shouldUpdate;
@@ -179,7 +202,7 @@ function updateClassComponent(
     Component,
     shouldUpdate,
     hasContext,
-    renderLanes,
+    renderLanes
   );
   return nextUnitOfWork;
 }
@@ -187,7 +210,7 @@ function updateClassComponent(
 function updateHostComponent(
   current: Fiber | null,
   workInProgress: Fiber,
-  renderLanes: Lanes,
+  renderLanes: Lanes
 ) {
   const type = workInProgress.type;
   const nextProps = workInProgress.pendingProps;
@@ -227,41 +250,30 @@ function beginWork(
   workInProgress: Fiber,
   renderLanes: Lanes
 ): Fiber | null {
-  // hc 前面省略了很多...
-
-  // Before entering the begin phase, clear pending update priority.
-  // TODO: This assumes that we're about to evaluate the component and process
-  // the update queue. However, there's an exception: SimpleMemoComponent
-  // sometimes bails out later in the begin phase. This indicates that we should
-  // move this assignment out of the common path and into each branch.
   workInProgress.lanes = NoLanes;
 
   switch (workInProgress.tag) {
-    // case LazyComponent: {
-    //   const elementType = workInProgress.elementType;
-    //   return mountLazyComponent(
-    //     current,
-    //     workInProgress,
-    //     elementType,
-    //     renderLanes,
-    //   );
-    // }
-    // 展示
-    // case FunctionComponent: {
-    //   const Component = workInProgress.type;
-    //   const unresolvedProps = workInProgress.pendingProps;
-    //   const resolvedProps =
-    //     workInProgress.elementType === Component
-    //       ? unresolvedProps
-    //       : resolveDefaultProps(Component, unresolvedProps);
-    //   return updateFunctionComponent(
-    //     current,
-    //     workInProgress,
-    //     Component,
-    //     resolvedProps,
-    //     renderLanes,
-    //   );
-    // }
+    case LazyComponent: {
+      // hc: 删除，以后研究
+      return null;
+    }
+    case FunctionComponent: {
+      // hc: 函数组件重点研究
+      const Component = workInProgress.type;
+      const unresolvedProps = workInProgress.pendingProps;
+      const resolvedProps =
+        workInProgress.elementType === Component
+          ? unresolvedProps
+          : resolveDefaultProps(Component, unresolvedProps);
+      return updateFunctionComponent(
+        current,
+        workInProgress,
+        Component,
+        resolvedProps,
+        renderLanes
+      );
+      return null;
+    }
     case ClassComponent: {
       const Component = workInProgress.type;
       const unresolvedProps = workInProgress.pendingProps;

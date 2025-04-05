@@ -69,8 +69,6 @@ function bubbleProperties(completedWork: Fiber) {
   let subtreeFlags = NoFlags;
 
   if (!didBailout) {
-    // Bubble up the earliest expiration time.
-    
       let child = completedWork.child;
       while (child !== null) {
         newChildLanes = mergeLanes(

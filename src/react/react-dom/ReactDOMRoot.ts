@@ -11,7 +11,8 @@ import type { FiberRoot } from "../react-reconciler/ReactInternalTypes";
 import type { ReactNodeList } from "../shared/ReactTypes";
 
 import {
-  markContainerAsRoot
+  markContainerAsRoot,
+  unmarkContainerAsRoot
 } from "./ReactDOMComponentTree";
 
 import {
@@ -29,7 +30,6 @@ export type RootType = {
 };
 
 function ReactDOMRoot(internalRoot: FiberRoot) {
-  // @ts-ignore
   this._internalRoot = internalRoot;
 }
 
@@ -45,9 +45,8 @@ export function createRoot(
     ? container.parentNode as any
     : container;
 
-  listenToAllSupportedEvents(rootContainerElement);
+  // listenToAllSupportedEvents(rootContainerElement);
 
-  // @ts-ignore
   return new ReactDOMRoot(root);
 }
 
@@ -57,5 +56,18 @@ ReactDOMRoot.prototype.render = function (children: ReactNodeList): void {
     throw new Error("Cannot update an unmounted root.");
   }
 
-  updateContainer(children, root, null, null);
+  updateContainer(children, root);
+};
+
+ReactDOMRoot.prototype.unmount = function(): void {
+  const root = this._internalRoot;
+  if (root !== null) {
+    this._internalRoot = null;
+    const container = root.containerInfo;
+    // hc flushSync 函数未知
+    // flushSync(() => {
+    //   updateContainer(null, root);
+    // });
+    unmarkContainerAsRoot(container);
+  }
 };

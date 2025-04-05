@@ -8,8 +8,7 @@ import { Callback } from "./ReactFiberFlags";
 import { enqueueConcurrentClassUpdate } from "./ReactFiberConcurrentUpdates";
 
 export type Update = {
-  // TODO: Temporary field. Will remove this by storing a map of
-  // transition -> event time on the root.
+  // TODO: Temporary field. Will remove this by storing a map of transition -> event time on the root.
   eventTime: number;
   lane: Lane;
 
@@ -20,8 +19,15 @@ export type Update = {
   next: Update | null;
 };
 
+export const UpdateState = 0;
+export const ReplaceState = 1;
+export const ForceUpdate = 2;
+export const CaptureUpdate = 3;
+
 export type SharedQueue = {
-  pending: Update | null;
+  // hc: 不仅是一个单向链表，而且是单向循环链表
+  pending: Update | null; 
+
   lanes: Lanes;
 };
 
@@ -32,11 +38,6 @@ export type UpdateQueue = {
   shared: SharedQueue;
   effects: Array<Update> | null;
 };
-
-export const UpdateState = 0;
-export const ReplaceState = 1;
-export const ForceUpdate = 2;
-export const CaptureUpdate = 3;
 
 // Global state that is reset at the beginning of calling `processUpdateQueue`.
 // It should only be read right after calling `processUpdateQueue`, via

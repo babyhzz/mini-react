@@ -28,8 +28,9 @@ import { Container } from './ReactFiberConfig';
 
 export type RootState = {
   element: any,
-  isDehydrated: boolean,
-  cache: Cache,
+  // TODO: 下面两个属性移除？
+  isDehydrated?: boolean,
+  cache?: Cache,
   // pendingSuspenseBoundaries: PendingSuspenseBoundaries | null,
   // transitions: Set<Transition> | null,
 };
@@ -42,7 +43,6 @@ function FiberRootNode(
   this.tag = tag;
   this.containerInfo = containerInfo;
   this.pendingChildren = null;
-  // @ts-ignore
   this.current = null;
   this.finishedWork = null;
   this.timeoutHandle = noTimeout;
@@ -75,7 +75,6 @@ export function createFiberRoot(
   tag: RootTag,
   initialChildren: ReactNodeList,
 ): FiberRoot {
-  // @ts-ignore
   const root: FiberRoot = new FiberRootNode(
     containerInfo,
     tag,

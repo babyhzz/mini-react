@@ -239,9 +239,13 @@ function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber {
   root.finishedWork = null;
   root.finishedLanes = NoLanes;
 
-  workInProgressRoot = root;
+  workInProgressRoot = root; // FiberRoot
+ 
+
+  // hc: 这里创建了一个新的 HostRootFiber，作为 workInProgress Fiber
   const rootWorkInProgress = createWorkInProgress(root.current, null);
   workInProgress = rootWorkInProgress;
+
   workInProgressRootRenderLanes = subtreeRenderLanes = workInProgressRootIncludedLanes = lanes;
   workInProgressRootExitStatus = RootInProgress;
   // workInProgressRootFatalError = null;
@@ -265,20 +269,19 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
     // The current, flushed, state of this fiber is the alternate. Ideally
     // nothing should rely on this, but relying on it here means that we don't
     // need an additional field on the work in progress.
+    // hc: 上面的注释说不能依赖 alternate，但可以节省变量 😊
     const current = completedWork.alternate;
     const returnFiber = completedWork.return;
 
-    // Check if the work completed or if something threw.
     if ((completedWork.flags & Incomplete) === NoFlags) {
       let next = completeWork(current, completedWork, subtreeRenderLanes);
 
       if (next !== null) {
-        // Completing this fiber spawned new work. Work on that next.
         workInProgress = next;
         return;
       }
     } else {
-      // hc 删除了逻辑
+      // hc: 删除了逻辑
     }
 
     const siblingFiber = completedWork.sibling;
@@ -287,7 +290,7 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
       workInProgress = siblingFiber;
       return;
     }
-    // Otherwise, return to the parent
+    // ?: 这里先返回到父节点然后到叔叔节点？
     completedWork = returnFiber;
     // Update the next thing we're working on in case something throws.
     workInProgress = completedWork;
@@ -299,18 +302,18 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
   }
 }
 
-
 function performUnitOfWork(unitOfWork: Fiber): void {
-  // The current, flushed, state of this fiber is the alternate. Ideally
-  // nothing should rely on this, but relying on it here means that we don't
-  // need an additional field on the work in progress.
+
+  // hc: unitOfWork 为新 fiber，current 为老 fiber
   const current = unitOfWork.alternate;
 
+  // hc: 深度优先遍历，这里会一直返回child
   const next = beginWork(current, unitOfWork, subtreeRenderLanes);
 
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
+
+  // hc: 如果深度优先遍历完成，则选择兄弟节点或父节点
   if (next === null) {
-    // If this doesn't spawn new work, complete the current work.
     completeUnitOfWork(unitOfWork);
   } else {
     workInProgress = next;
@@ -320,9 +323,7 @@ function performUnitOfWork(unitOfWork: Fiber): void {
 }
 
 function workLoopSync() {
-  // Already timed out, so perform work without checking if we need to yield.
   while (workInProgress !== null) {
-    console.log('%c [ performUnitOfWork ]-279', 'font-size:13px; background:pink; color:#bf2c9f;', performUnitOfWork)
     performUnitOfWork(workInProgress);
   }
 }
@@ -506,13 +507,12 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
   do {
     try {
+      // hc: 这里 while 并不是一个循环，workLoopSync 是一个 while 无限循环
       workLoopSync();
       break;
     } catch (thrownValue) {
-      // handleError(root, thrownValue);
     }
   } while (true);
-  // resetContextDependencies();
 
   executionContext = prevExecutionContext;
   popDispatcher(prevDispatcher);
@@ -527,7 +527,7 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
 // This is the entry point for every concurrent task, i.e. anything that
 // goes through Scheduler.
-function performConcurrentWorkOnRoot(root, didTimeout) {
+function performConcurrentWorkOnRoot(root) {
   // Since we know we're in a React event, we can clear the current
   // event time. The next update will compute a new event time.
   currentEventTime = NoTimestamp;
@@ -564,12 +564,6 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
     return null;
   }
 
-  // We disable time-slicing in some cases: if the work has been CPU-bound
-  // for too long ("expired" work, to prevent starvation), or we're in
-  // sync-updates-by-default mode.
-  // TODO: We only check `didTimeout` defensively, to account for a Scheduler
-  // bug we're still investigating. Once the bug in Scheduler is fixed,
-  // we can remove this, since we track expiration ourselves.
   const shouldTimeSlice =
     !includesBlockingLane(root, lanes) &&
     !includesExpiredLane(root, lanes) 
@@ -595,6 +589,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
   return null;
 }
 
+// hc: React更新会从根节点开始遍历
 export function scheduleUpdateOnFiber(
   root: FiberRoot,
   fiber: Fiber,

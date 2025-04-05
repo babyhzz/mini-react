@@ -109,12 +109,8 @@ export function constructClassInstance(
   props: any,
 ): any {
 
-  let instance = new ctor(props, {});
- 
-  const state = (workInProgress.memoizedState =
-    instance.state !== null && instance.state !== undefined
-      ? instance.state
-      : null);
+  const instance = new ctor(props, {});
+
   adoptClassInstance(workInProgress, instance);
 
   return instance;

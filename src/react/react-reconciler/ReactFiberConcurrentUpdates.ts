@@ -105,11 +105,9 @@ export function enqueueConcurrentClassUpdate(
   update: ClassUpdate,
   lane: Lane
 ): FiberRoot | null {
-  // @ts-ignore
   const concurrentQueue: ConcurrentQueue = queue;
-  // @ts-ignore
   const concurrentUpdate: ConcurrentUpdate = update;
-  // hc 这里放在全局变量 concurrentQueues 里？
+  // hc: 这里放在全局变量 concurrentQueues 里？这里的用意是什么？
   enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
   return getRootForUpdatedFiber(fiber);
 }
@@ -147,7 +145,7 @@ function markUpdateLaneFromFiberToRoot(
   }
 }
 
-// hc HostRootFiber的父节点为null，不是FiberRoot
+// hc: HostRootFiber的父节点为null，不是FiberRoot
 function getRootForUpdatedFiber(sourceFiber: Fiber): FiberRoot | null {
   let node = sourceFiber;
   let parent = node.return;

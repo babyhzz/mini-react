@@ -1,7 +1,7 @@
 import { getCurrentEventPriority } from "../react-dom/ReactDOMHostConfig";
 import ReactCurrentDispatcher from "../react/ReactCurrentDispatcher";
 import ReactCurrentOwner from "../react/ReactCurrentOwner";
-import { cancelCallback, now, scheduleCallback,  } from "../scheduler/Scheduler";
+import { cancelCallback, now, scheduleCallback, shouldYield,  } from "../scheduler/Scheduler";
 import {
   ImmediatePriority as ImmediateSchedulerPriority,
   UserBlockingPriority as UserBlockingSchedulerPriority,
@@ -66,8 +66,17 @@ let workInProgressRootIncludedLanes: Lanes = NoLanes;
 let workInProgressRootRenderTargetTime: number = Infinity;
 // How long a render is supposed to take before we start following CPU
 // suspense heuristics and opt out of rendering more content.
+const RENDER_TIMEOUT_MS = 500;
 
 let currentEventTime: number = NoTimestamp;
+
+function resetRenderTimer() {
+  workInProgressRootRenderTargetTime = now() + RENDER_TIMEOUT_MS;
+}
+
+export function getRenderTargetTime(): number {
+  return workInProgressRootRenderTargetTime;
+}
 
 export function getWorkInProgressRoot(): FiberRoot | null {
   return workInProgressRoot;
@@ -302,6 +311,13 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
   }
 }
 
+function workLoopConcurrent() {
+  // Perform work until Scheduler asks us to yield
+  while (workInProgress !== null && !shouldYield()) {
+    performUnitOfWork(workInProgress);
+  }
+}
+
 function performUnitOfWork(unitOfWork: Fiber): void {
 
   // hc: unitOfWork 为新 fiber，current 为老 fiber
@@ -329,7 +345,40 @@ function workLoopSync() {
 }
 
 function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
-  // TODO 后续添加
+  const prevExecutionContext = executionContext;
+  executionContext |= RenderContext;
+  const prevDispatcher = pushDispatcher();
+
+  // If the root or lanes have changed, throw out the existing stack
+  // and prepare a fresh one. Otherwise we'll continue where we left off.
+  if (workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
+    resetRenderTimer();
+    prepareFreshStack(root, lanes);
+  }
+
+  do {
+    try {
+      workLoopConcurrent();
+      break;
+    } catch (thrownValue) {
+    }
+  } while (true);
+
+  popDispatcher(prevDispatcher);
+  executionContext = prevExecutionContext;
+
+  // Check if the tree has completed.
+  if (workInProgress !== null) {
+    return RootInProgress;
+  } else {
+
+    // Set this to null to indicate there's no in-progress render.
+    workInProgressRoot = null;
+    workInProgressRootRenderLanes = NoLanes;
+
+    // Return the final exit status.
+    return workInProgressRootExitStatus;
+  }
 }
 
 

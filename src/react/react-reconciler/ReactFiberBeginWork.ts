@@ -219,11 +219,8 @@ function updateHostComponent(
   let nextChildren = nextProps.children;
   const isDirectTextChild = shouldSetTextContent(type, nextProps);
 
+  // hc: 只有一个文本节点
   if (isDirectTextChild) {
-    // We special case a direct text child of a host node. This is a common
-    // case. We won't handle it as a reified child. We will instead handle
-    // this in the host environment that also has access to this prop. That
-    // avoids allocating another HostText fiber and traversing it.
     nextChildren = null;
   } else if (prevProps !== null && shouldSetTextContent(type, prevProps)) {
     // If we're switching from a direct text child to a normal child, or to
@@ -259,19 +256,19 @@ function beginWork(
     }
     case FunctionComponent: {
       // hc: 函数组件重点研究
-      const Component = workInProgress.type;
-      const unresolvedProps = workInProgress.pendingProps;
-      const resolvedProps =
-        workInProgress.elementType === Component
-          ? unresolvedProps
-          : resolveDefaultProps(Component, unresolvedProps);
-      return updateFunctionComponent(
-        current,
-        workInProgress,
-        Component,
-        resolvedProps,
-        renderLanes
-      );
+      // const Component = workInProgress.type;
+      // const unresolvedProps = workInProgress.pendingProps;
+      // const resolvedProps =
+      //   workInProgress.elementType === Component
+      //     ? unresolvedProps
+      //     : resolveDefaultProps(Component, unresolvedProps);
+      // return updateFunctionComponent(
+      //   current,
+      //   workInProgress,
+      //   Component,
+      //   resolvedProps,
+      //   renderLanes
+      // );
       return null;
     }
     case ClassComponent: {

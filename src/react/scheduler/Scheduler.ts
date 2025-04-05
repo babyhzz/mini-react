@@ -364,5 +364,6 @@ export function cancelCallback(task: Task) {
 // }
 
 export {
+  shouldYieldToHost as shouldYield,
   getCurrentTime as now,
 }

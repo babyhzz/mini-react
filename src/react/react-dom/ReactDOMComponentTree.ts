@@ -148,6 +148,22 @@ export function getInstanceFromNode(node: Node): Fiber | null {
   return null;
 }
 
+/**
+ * Given a ReactDOMComponent or ReactDOMTextComponent, return the corresponding
+ * DOM node.
+ */
+export function getNodeFromInstance(inst: Fiber): Instance | TextInstance {
+  if (inst.tag === HostComponent || inst.tag === HostText) {
+    // In Fiber this, is just the state node right now. We assume it will be
+    // a host component or host text.
+    return inst.stateNode;
+  }
+
+  // Without this first invariant, passing a non-DOM-component triggers the next
+  // invariant for a missing parent, which is super confusing.
+  throw new Error('getNodeFromInstance: Invalid argument.');
+}
+
 export function getFiberCurrentPropsFromNode(
   node: Instance | TextInstance | SuspenseInstance,
 ): Props {

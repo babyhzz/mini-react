@@ -489,6 +489,49 @@ function createDispatchListener(
   };
 }
 
+export function accumulateSinglePhaseListeners(
+  targetFiber: Fiber | null,
+  reactName: string | null,
+  nativeEventType: string,
+  inCapturePhase: boolean,
+  accumulateTargetOnly: boolean,
+  nativeEvent: AnyNativeEvent,
+): Array<DispatchListener> {
+  const captureName = reactName !== null ? reactName + 'Capture' : null;
+  const reactEventName = inCapturePhase ? captureName : reactName;
+  let listeners: Array<DispatchListener> = [];
+
+  let instance = targetFiber;
+  let lastHostComponent = null;
+
+  // Accumulate all instances and listeners via the target -> root path.
+  while (instance !== null) {
+    const {stateNode, tag} = instance;
+    // Handle listeners that are on HostComponents (i.e. <div>)
+    if (tag === HostComponent && stateNode !== null) {
+      lastHostComponent = stateNode;
+
+      // Standard React on* listeners, i.e. onClick or onClickCapture
+      if (reactEventName !== null) {
+        const listener = getListener(instance, reactEventName);
+        if (listener != null) {
+          listeners.push(
+            createDispatchListener(instance, listener, lastHostComponent),
+          );
+        }
+      }
+    }
+    // If we are only accumulating events for the target, then we don't
+    // continue to propagate through the React fiber tree to find other
+    // listeners.
+    if (accumulateTargetOnly) {
+      break;
+    }
+    
+    instance = instance.return;
+  }
+  return listeners;
+}
 
 // We should only use this function for:
 // - BeforeInputEventPlugin

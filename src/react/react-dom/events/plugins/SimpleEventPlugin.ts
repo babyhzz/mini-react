@@ -8,23 +8,23 @@
  */
 
 import type { DOMEventName } from "../DOMEventNames";
-import type { AnyNativeEvent } from "../PluginModuleType";
 import type { DispatchQueue } from "../DOMPluginEventSystem";
 import type { EventSystemFlags } from "../EventSystemFlags";
+import type { AnyNativeEvent } from "../PluginModuleType";
 
 import {
-  SyntheticEvent,
-  SyntheticKeyboardEvent,
-  SyntheticFocusEvent,
-  SyntheticMouseEvent,
-  SyntheticDragEvent,
-  SyntheticTouchEvent,
   SyntheticAnimationEvent,
+  SyntheticClipboardEvent,
+  SyntheticDragEvent,
+  SyntheticEvent,
+  SyntheticFocusEvent,
+  SyntheticKeyboardEvent,
+  SyntheticMouseEvent,
+  SyntheticPointerEvent,
+  SyntheticTouchEvent,
   SyntheticTransitionEvent,
   SyntheticUIEvent,
   SyntheticWheelEvent,
-  SyntheticClipboardEvent,
-  SyntheticPointerEvent,
 } from "../SyntheticEvent";
 
 import {
@@ -34,16 +34,13 @@ import {
   TRANSITION_END,
 } from "../DOMEventNames";
 import {
-  topLevelEventsToReactNames,
   registerSimpleEvents,
+  topLevelEventsToReactNames,
 } from "../DOMEventProperties";
 import {
-  accumulateSinglePhaseListeners,
-  accumulateEventHandleNonManagedNodeListeners,
+  accumulateSinglePhaseListeners
 } from "../DOMPluginEventSystem";
-import { IS_EVENT_HANDLE_NON_MANAGED_NODE } from "../EventSystemFlags";
 
-import getEventCharCode from "../getEventCharCode";
 import { IS_CAPTURE_PHASE } from "../EventSystemFlags";
 
 import { Fiber } from "../../../react-reconciler/ReactInternalTypes";
@@ -150,13 +147,8 @@ function extractEvents(
   // In the past, React has always bubbled them, but this can be surprising.
   // We're going to try aligning closer to the browser behavior by not bubbling
   // them in React either. We'll start by not bubbling onScroll, and then expand.
-  const accumulateTargetOnly =
-    !inCapturePhase &&
-    // TODO: ideally, we'd eventually add all events from
-    // nonDelegatedEvents list in DOMPluginEventSystem.
-    // Then we can remove this special list.
-    // This is a breaking change that can wait until React 18.
-    domEventName === "scroll";
+  // hc: 判断是否只在目标触发，而不冒泡，注意 scroll 事件不冒泡，但支持捕获！！！可以看英文注释。
+  const accumulateTargetOnly = !inCapturePhase && domEventName === "scroll";
 
   const listeners = accumulateSinglePhaseListeners(
     targetInst,
@@ -180,4 +172,5 @@ function extractEvents(
   }
 }
 
-export { registerSimpleEvents as registerEvents, extractEvents };
+export { extractEvents, registerSimpleEvents as registerEvents };
+

@@ -12,20 +12,18 @@ import type {DOMEventName} from '../DOMEventNames';
 import type {DispatchQueue} from '../DOMPluginEventSystem';
 import type {EventSystemFlags} from '../EventSystemFlags';
 
-import {canUseDOM} from 'shared/ExecutionEnvironment';
 import {SyntheticEvent} from '../../events/SyntheticEvent';
 import isTextInputElement from '../isTextInputElement';
-import shallowEqual from 'shared/shallowEqual';
 
 import {registerTwoPhaseEvent} from '../EventRegistry';
-import getActiveElement from '../../client/getActiveElement';
-import {getNodeFromInstance} from '../../client/ReactDOMComponentTree';
-import {hasSelectionCapabilities} from '../../client/ReactInputSelection';
-import {DOCUMENT_NODE} from '../../shared/HTMLNodeType';
 import {accumulateTwoPhaseListeners} from '../DOMPluginEventSystem';
+import { Fiber } from '../../../react-reconciler/ReactInternalTypes';
+import { getNodeFromInstance } from '../../ReactDOMComponentTree';
+import { canUseDOM } from '../../../shared/ExecutionEnvironment';
+import { DOCUMENT_NODE } from '../../HTMLNodeType';
 
 const skipSelectionChangeEvent =
-  canUseDOM && 'documentMode' in document && document.documentMode <= 11;
+  canUseDOM && 'documentMode' in document && (document.documentMode as number) <= 11;
 
 function registerEvents() {
   registerTwoPhaseEvent('onSelect', [
@@ -114,6 +112,7 @@ function constructSelectEvent(dispatchQueue, nativeEvent, nativeEventTarget) {
       'onSelect',
     );
     if (listeners.length > 0) {
+      // @ts-ignore
       const event = new SyntheticEvent(
         'onSelect',
         'select',
@@ -150,13 +149,13 @@ function extractEvents(
   eventSystemFlags: EventSystemFlags,
   targetContainer: EventTarget,
 ) {
-  const targetNode = targetInst ? getNodeFromInstance(targetInst) : window;
+  const targetNode = (targetInst ? getNodeFromInstance(targetInst) : window) as HTMLElement;
 
   switch (domEventName) {
     // Track the input node that has focus.
     case 'focusin':
       if (
-        isTextInputElement((targetNode: any)) ||
+        isTextInputElement(targetNode) ||
         targetNode.contentEditable === 'true'
       ) {
         activeElement = targetNode;

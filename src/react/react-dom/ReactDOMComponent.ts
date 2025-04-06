@@ -1,5 +1,6 @@
 import { setValueForStyles } from "./CSSPropertyOperations";
 import { getIntrinsicNamespace, HTML_NAMESPACE } from "./DOMNamespaces";
+import { setValueForProperty } from "./DOMPropertyOperations";
 import { DOCUMENT_NODE } from "./HTMLNodeType";
 import setInnerHTML from "./setInnerHtml";
 import setTextContent from "./setTextContent";
@@ -314,6 +315,7 @@ export function updateProperties(
   lastRawProps: Object,
   nextRawProps: Object,
 ): void {
+  // hc: 暂先注释
   // Update checked *before* name.
   // In the middle of an update, it is possible to have multiple checked.
   // When a checked radio tries to change name, browser makes another radio's checked false.
@@ -335,22 +337,21 @@ export function updateProperties(
     isCustomComponentTag,
   );
 
-  // TODO: Ensure that an update gets scheduled if any of the special props
-  // changed.
-  switch (tag) {
-    case 'input':
-      // Update the wrapper around inputs *after* updating props. This has to
-      // happen after `updateDOMProperties`. Otherwise HTML5 input validations
-      // raise warnings and prevent the new value from being assigned.
-      ReactDOMInputUpdateWrapper(domElement, nextRawProps);
-      break;
-    case 'textarea':
-      ReactDOMTextareaUpdateWrapper(domElement, nextRawProps);
-      break;
-    case 'select':
-      // <select> value update needs to occur after <option> children
-      // reconciliation
-      ReactDOMSelectPostUpdateWrapper(domElement, nextRawProps);
-      break;
-  }
+  // hc: 暂先注释
+  // switch (tag) {
+  //   case 'input':
+  //     // Update the wrapper around inputs *after* updating props. This has to
+  //     // happen after `updateDOMProperties`. Otherwise HTML5 input validations
+  //     // raise warnings and prevent the new value from being assigned.
+  //     ReactDOMInputUpdateWrapper(domElement, nextRawProps);
+  //     break;
+  //   case 'textarea':
+  //     ReactDOMTextareaUpdateWrapper(domElement, nextRawProps);
+  //     break;
+  //   case 'select':
+  //     // <select> value update needs to occur after <option> children
+  //     // reconciliation
+  //     ReactDOMSelectPostUpdateWrapper(domElement, nextRawProps);
+  //     break;
+  // }
 }

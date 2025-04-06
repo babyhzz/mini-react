@@ -141,25 +141,25 @@ function updateFunctionComponent(
   // hc: 暂不学习
   // prepareToReadContext(workInProgress, renderLanes);
 
-  nextChildren = renderWithHooks(
-    current,
-    workInProgress,
-    Component,
-    nextProps,
-    context,
-    renderLanes
-  );
-  hasId = checkDidRenderIdHook();
+  // nextChildren = renderWithHooks(
+  //   current,
+  //   workInProgress,
+  //   Component,
+  //   nextProps,
+  //   context,
+  //   renderLanes
+  // );
+  // hasId = checkDidRenderIdHook();
 
-  if (current !== null && !didReceiveUpdate) {
-    bailoutHooks(current, workInProgress, renderLanes);
-    return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
-  }
+  // if (current !== null && !didReceiveUpdate) {
+  //   bailoutHooks(current, workInProgress, renderLanes);
+  //   return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
+  // }
 
-  // React DevTools reads this flag.
-  workInProgress.flags |= PerformedWork;
-  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
-  return workInProgress.child;
+  // // React DevTools reads this flag.
+  // workInProgress.flags |= PerformedWork;
+  // reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  // return workInProgress.child;
 }
 
 function updateClassComponent(

@@ -9,6 +9,8 @@ import { createElement, setInitialProperties } from "./ReactDOMComponent";
 import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
 import { Fiber } from "../react-reconciler/ReactInternalTypes";
 import { COMMENT_NODE } from "./HTMLNodeType";
+import setTextContent from "./setTextContent";
+import isCustomComponent from "./isCustomCpomponent";
 
 export type Type = string;
 export type Props = {
@@ -180,4 +182,22 @@ export function getParentSuspenseInstance(
     node = node.previousSibling;
   }
   return null;
+}
+
+export function resetTextContent(domElement: Instance): void {
+  setTextContent(domElement, '');
+}
+
+export function commitUpdate(
+  domElement: Instance,
+  updatePayload: Array<any>,
+  type: string,
+  oldProps: Props,
+  newProps: Props,
+): void {
+  // Apply the diff to the DOM node.
+  updateProperties(domElement, updatePayload, type, oldProps, newProps);
+  // Update the props handle so that we know which props are the ones with
+  // with current event handlers.
+  updateFiberProps(domElement, newProps);
 }

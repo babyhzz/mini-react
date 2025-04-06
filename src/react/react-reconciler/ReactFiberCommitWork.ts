@@ -1,19 +1,123 @@
-import { appendChild, appendChildToContainer, insertBefore, insertInContainerBefore, Instance } from "../react-dom/ReactDOMHostConfig";
+import {
+  appendChild,
+  appendChildToContainer,
+  commitUpdate,
+  insertBefore,
+  insertInContainerBefore,
+  Instance,
+  resetTextContent,
+  supportsMutation,
+} from "../react-dom/ReactDOMHostConfig";
 import { Container } from "./ReactFiberConfig";
-import { ContentReset, MutationMask, Placement, Ref, Update } from "./ReactFiberFlags";
+import {
+  ContentReset,
+  MutationMask,
+  Placement,
+  Ref,
+  Update,
+} from "./ReactFiberFlags";
 import { Lanes } from "./ReactFiberLane";
 import { Fiber, FiberRoot } from "./ReactInternalTypes";
-import { ClassComponent, FunctionComponent, HostComponent, HostPortal, HostRoot, HostText } from "./ReactWorkTags";
+import {
+  ClassComponent,
+  FunctionComponent,
+  HostComponent,
+  HostPortal,
+  HostRoot,
+  HostText,
+} from "./ReactWorkTags";
 
 // Used for Profiling builds to track updaters.
 let inProgressLanes: Lanes | null = null;
 let inProgressRoot: FiberRoot | null = null;
 
+// These are tracked on the stack as we recursively traverse a
+// deleted subtree.
+// TODO: Update these during the whole mutation phase, not just during
+// a deletion.
+let hostParent: Instance | Container | null = null;
+let hostParentIsContainer: boolean = false;
+
+function safelyDetachRef(current: Fiber, nearestMountedAncestor: Fiber | null) {
+  const ref = current.ref;
+  if (ref !== null) {
+    if (typeof ref === "function") {
+      let retVal;
+      try {
+        retVal = ref(null);
+      } catch (error) {}
+    } else {
+      ref.current = null;
+    }
+  }
+}
+
+function commitDeletionEffects(
+  root: FiberRoot,
+  returnFiber: Fiber,
+  deletedFiber: Fiber
+) {
+  if (supportsMutation) {
+    // We only have the top Fiber that was deleted but we need to recurse down its
+    // children to find all the terminal nodes.
+
+    // Recursively delete all host nodes from the parent, detach refs, clean
+    // up mounted layout effects, and call componentWillUnmount.
+
+    // We only need to remove the topmost host child in each branch. But then we
+    // still need to keep traversing to unmount effects, refs, and cWU. TODO: We
+    // could split this into two separate traversals functions, where the second
+    // one doesn't include any removeChild logic. This is maybe the same
+    // function as "disappearLayoutEffects" (or whatever that turns into after
+    // the layout phase is refactored to use recursion).
+
+    // Before starting, find the nearest host parent on the stack so we know
+    // which instance/container to remove the children from.
+    // TODO: Instead of searching up the fiber return path on every deletion, we
+    // can track the nearest host component on the JS stack as we traverse the
+    // tree during the commit phase. This would make insertions faster, too.
+    let parent = returnFiber;
+    findParent: while (parent !== null) {
+      switch (parent.tag) {
+        case HostComponent: {
+          hostParent = parent.stateNode;
+          hostParentIsContainer = false;
+          break findParent;
+        }
+        case HostRoot: {
+          hostParent = parent.stateNode.containerInfo;
+          hostParentIsContainer = true;
+          break findParent;
+        }
+        case HostPortal: {
+          hostParent = parent.stateNode.containerInfo;
+          hostParentIsContainer = true;
+          break findParent;
+        }
+      }
+      parent = parent.return;
+    }
+    if (hostParent === null) {
+      throw new Error(
+        "Expected to find a host parent. This error is likely caused by " +
+          "a bug in React. Please file an issue."
+      );
+    }
+    commitDeletionEffectsOnFiber(root, returnFiber, deletedFiber);
+    hostParent = null;
+    hostParentIsContainer = false;
+  } else {
+    // Detach refs and call componentWillUnmount() on the whole subtree.
+    commitDeletionEffectsOnFiber(root, returnFiber, deletedFiber);
+  }
+
+  detachFiberMutation(deletedFiber);
+}
 
 function recursivelyTraverseMutationEffects(
   root: FiberRoot,
   parentFiber: Fiber,
-  lanes: Lanes,
+  lanes: Lanes
 ) {
   // Deletions effects can be scheduled on any fiber type. They need to happen
   // before the children effects hae fired.
@@ -22,31 +126,28 @@ function recursivelyTraverseMutationEffects(
     for (let i = 0; i < deletions.length; i++) {
       const childToDelete = deletions[i];
       // hc 待补充
-      // commitDeletionEffects(root, parentFiber, childToDelete);
+      commitDeletionEffects(root, parentFiber, childToDelete);
     }
   }
 
   if (parentFiber.subtreeFlags & MutationMask) {
     let child = parentFiber.child;
     while (child !== null) {
+      // hc: 递归提交，深度优先遍历
       commitMutationEffectsOnFiber(child, root, lanes);
       child = child.sibling;
     }
   }
 }
 
-
 function commitMutationEffectsOnFiber(
   finishedWork: Fiber,
   root: FiberRoot,
-  lanes: Lanes,
+  lanes: Lanes
 ) {
   const current = finishedWork.alternate;
   const flags = finishedWork.flags;
 
-  // The effect flag should be checked *after* we refine the type of fiber,
-  // because the fiber tag is more specific. An exception is any flag related
-  // to reconcilation, because those can be set on all fiber types.
   switch (finishedWork.tag) {
     case ClassComponent: {
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
@@ -65,22 +166,15 @@ function commitMutationEffectsOnFiber(
 
       if (flags & Ref) {
         if (current !== null) {
-          // safelyDetachRef(current, current.return);
+          safelyDetachRef(current, current.return);
         }
       }
       if (supportsMutation) {
-        // TODO: ContentReset gets cleared by the children during the commit
-        // phase. This is a refactor hazard because it means we must read
-        // flags the flags after `commitReconciliationEffects` has already run;
-        // the order matters. We should refactor so that ContentReset does not
-        // rely on mutating the flag during commit. Like by setting a flag
-        // during the render phase instead.
         if (finishedWork.flags & ContentReset) {
           const instance: Instance = finishedWork.stateNode;
           try {
             resetTextContent(instance);
           } catch (error) {
-            captureCommitPhaseError(finishedWork, finishedWork.return, error);
           }
         }
 
@@ -106,15 +200,8 @@ function commitMutationEffectsOnFiber(
                   type,
                   oldProps,
                   newProps,
-                  finishedWork,
                 );
-              } catch (error) {
-                captureCommitPhaseError(
-                  finishedWork,
-                  finishedWork.return,
-                  error,
-                );
-              }
+              } catch (error) {}
             }
           }
         }
@@ -155,7 +242,7 @@ function commitReconciliationEffects(finishedWork: Fiber) {
 export function commitMutationEffects(
   root: FiberRoot,
   finishedWork: Fiber,
-  committedLanes: Lanes,
+  committedLanes: Lanes
 ) {
   inProgressLanes = committedLanes;
   inProgressRoot = root;
@@ -184,8 +271,8 @@ function getHostParentFiber(fiber: Fiber): Fiber {
   }
 
   throw new Error(
-    'Expected to find a host parent. This error is likely caused by a bug ' +
-      'in React. Please file an issue.',
+    "Expected to find a host parent. This error is likely caused by a bug " +
+      "in React. Please file an issue."
   );
 }
 
@@ -207,10 +294,7 @@ function getHostSibling(fiber: Fiber): Instance | undefined {
     }
     node.sibling.return = node.return;
     node = node.sibling;
-    while (
-      node.tag !== HostComponent &&
-      node.tag !== HostText
-    ) {
+    while (node.tag !== HostComponent && node.tag !== HostText) {
       // If it is not host node and, we might have a host node inside it.
       // Try to search down until we find one.
       if (node.flags & Placement) {
@@ -237,9 +321,9 @@ function getHostSibling(fiber: Fiber): Instance | undefined {
 function insertOrAppendPlacementNodeIntoContainer(
   node: Fiber,
   before: Instance,
-  parent: Container,
+  parent: Container
 ): void {
-  const {tag} = node;
+  const { tag } = node;
   const isHost = tag === HostComponent || tag === HostText;
   if (isHost) {
     const stateNode = node.stateNode;
@@ -268,9 +352,9 @@ function insertOrAppendPlacementNodeIntoContainer(
 function insertOrAppendPlacementNode(
   node: Fiber,
   before: Instance | undefined,
-  parent: Instance,
+  parent: Instance
 ): void {
-  const {tag} = node;
+  const { tag } = node;
   const isHost = tag === HostComponent || tag === HostText;
   if (isHost) {
     const stateNode = node.stateNode;
@@ -297,7 +381,6 @@ function insertOrAppendPlacementNode(
 }
 
 function commitPlacement(finishedWork: Fiber): void {
-
   // Recursively insert all host nodes into the parent.
   const parentFiber = getHostParentFiber(finishedWork);
 
@@ -328,8 +411,8 @@ function commitPlacement(finishedWork: Fiber): void {
     // eslint-disable-next-line-no-fallthrough
     default:
       throw new Error(
-        'Invalid host parent fiber. This error is likely caused by a bug ' +
-          'in React. Please file an issue.',
+        "Invalid host parent fiber. This error is likely caused by a bug " +
+          "in React. Please file an issue."
       );
   }
 }

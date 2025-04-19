@@ -234,9 +234,6 @@ function updateHostComponent(
 }
 
 function updateHostText(current, workInProgress) {
-  if (current === null) {
-    // tryToClaimNextHydratableInstance(workInProgress);
-  }
   // Nothing to do here. This is terminal. We'll do the completion step
   // immediately after.
   return null;
@@ -347,6 +344,10 @@ function beginWork(
     `Unknown unit of work tag (${workInProgress.tag}). This error is likely caused by a bug in ` +
       "React. Please file an issue."
   );
+}
+
+export function markWorkInProgressReceivedUpdate() {
+  didReceiveUpdate = true;
 }
 
 export { beginWork };

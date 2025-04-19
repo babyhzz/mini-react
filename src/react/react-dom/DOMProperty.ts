@@ -44,7 +44,7 @@ export type PropertyInfo = {
   type: PropertyType,
   sanitizeURL: boolean,
   removeEmptyString: boolean,
-|};
+};
 
 /* eslint-disable max-len */
 export const ATTRIBUTE_NAME_START_CHAR =

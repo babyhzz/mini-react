@@ -155,10 +155,6 @@ function ChildReconciler(shouldTrackSideEffects) {
     if (current !== null) {
       if (
         current.elementType === elementType ||
-        // Keep this check inline so it only runs on the false path:
-        (__DEV__
-          ? isCompatibleFamilyForHotReloading(current, element)
-          : false) ||
         // Lazy types should reconcile their resolved type.
         // We need to do this after the Hot Reloading check above,
         // because hot reloading has different semantics than prod because
@@ -172,10 +168,7 @@ function ChildReconciler(shouldTrackSideEffects) {
         const existing = useFiber(current, element.props);
         existing.ref = coerceRef(returnFiber, current, element);
         existing.return = returnFiber;
-        if (__DEV__) {
-          existing._debugSource = element._source;
-          existing._debugOwner = element._owner;
-        }
+
         return existing;
       }
     }
@@ -704,7 +697,7 @@ function ChildReconciler(shouldTrackSideEffects) {
   ): Fiber {
     const key = element.key;
 
-    // hc: 初次挂载 child 为 null
+    // hc: 初次挂载 currentFirstChild 为 null
     let child = currentFirstChild;
     while (child !== null) {
       if (child.key === key) {

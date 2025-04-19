@@ -361,7 +361,7 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   // hc: unitOfWork 为新 fiber，current 为老 fiber
   const current = unitOfWork.alternate;
 
-  // hc: 深度优先遍历，这里会一直返回child
+  // hc: 这里是如何遍历法？
   const next = beginWork(current, unitOfWork, subtreeRenderLanes);
 
   unitOfWork.memoizedProps = unitOfWork.pendingProps;

@@ -16,6 +16,10 @@ import type { Lane, Lanes } from "./ReactFiberLane";
 
 import { NoLane, NoLanes, mergeLanes } from "./ReactFiberLane";
 import { HostRoot, OffscreenComponent } from "./ReactWorkTags";
+import type {
+  UpdateQueue as HookQueue,
+  Update as HookUpdate,
+} from './ReactFiberHooks';
 
 export type ConcurrentUpdate = {
   next: ConcurrentUpdate;
@@ -154,4 +158,16 @@ function getRootForUpdatedFiber(sourceFiber: Fiber): FiberRoot | null {
     parent = node.return;
   }
   return node.tag === HostRoot ? (node.stateNode as FiberRoot) : null;
+}
+
+export function enqueueConcurrentHookUpdate<S, A>(
+  fiber: Fiber,
+  queue: HookQueue<S, A>,
+  update: HookUpdate<S, A>,
+  lane: Lane,
+): FiberRoot | null {
+  const concurrentQueue: ConcurrentQueue = queue;
+  const concurrentUpdate: ConcurrentUpdate = update;
+  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
+  return getRootForUpdatedFiber(fiber);
 }

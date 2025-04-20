@@ -317,7 +317,6 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
     // The current, flushed, state of this fiber is the alternate. Ideally
     // nothing should rely on this, but relying on it here means that we don't
     // need an additional field on the work in progress.
-    // hc: 上面的注释说不能依赖 alternate，但可以节省变量 😊
     const current = completedWork.alternate;
     const returnFiber = completedWork.return;
 
@@ -605,7 +604,7 @@ function performConcurrentWorkOnRoot(root) {
     // hc: commit阶段
     root.finishedWork = finishedWork;
     root.finishedLanes = lanes;
-    finishConcurrentRender(root, exitStatus, lanes);
+    finishConcurrentRender(root, exitStatus);
   }
 
   ensureRootIsScheduled(root, now());

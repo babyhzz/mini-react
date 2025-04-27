@@ -30,6 +30,7 @@ const RESERVED_PROPS = {
       props: props,
   
       // Record the component responsible for creating this element.
+      // hc 如上注释，记录创建该元素的 fiber
       _owner: owner,
     };
   
@@ -37,6 +38,7 @@ const RESERVED_PROPS = {
   };
   
   /**
+   * 给 babel 或 ts 使用的函数，用于将 jsx 语法转换成 ReactElement
    * https://github.com/reactjs/rfcs/pull/107
    * @param {*} type
    * @param {object} props
@@ -61,6 +63,7 @@ const RESERVED_PROPS = {
       key = '' + maybeKey;
     }
   
+    // hc 注意jsx阶段，key已经被转换成字符串，故其类型为 string ｜ null
     if (hasValidKey(config)) {
       key = '' + config.key;
     }

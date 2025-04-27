@@ -4,11 +4,29 @@
 
 import { getIteratorFn, REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE, REACT_LAZY_TYPE, REACT_PORTAL_TYPE } from "../shared/ReactSymbols";
 import { ReactElement, ReactPortal } from "../shared/ReactTypes";
-import { createFiberFromElement, createFiberFromFragment, createFiberFromText, createWorkInProgress } from "./ReactFiber";
+import { createFiberFromElement, createFiberFromFragment, createFiberFromPortal, createFiberFromText, createWorkInProgress } from "./ReactFiber";
 import { ChildDeletion, Forked, Placement } from "./ReactFiberFlags";
 import { Lanes } from "./ReactFiberLane";
 import { Fiber } from "./ReactInternalTypes";
 import { Fragment, HostPortal, HostText } from "./ReactWorkTags";
+
+function coerceRef(
+  returnFiber: Fiber,
+  current: Fiber | null,
+  element: ReactElement,
+) {
+  const mixedRef = element.ref;
+
+  // hc 删除了 element._owner 相关代码，兼容 ref 为字符串的情况
+  // hc element._owner 为父组件的 fiber
+  return mixedRef;
+}
+
+function resolveLazy(lazyType) {
+  const payload = lazyType._payload;
+  const init = lazyType._init;
+  return init(payload);
+}
 
 // live outside of this function.
 function ChildReconciler(shouldTrackSideEffects) {
@@ -23,15 +41,6 @@ function ChildReconciler(shouldTrackSideEffects) {
     } else {
       deletions.push(childToDelete);
     }
-  }
-
-  function coerceRef(
-    returnFiber: Fiber,
-    current: Fiber | null,
-    element: ReactElement,
-  ) {
-    const mixedRef = element.ref;
-    return mixedRef;
   }
 
   function deleteRemainingChildren(
@@ -179,29 +188,29 @@ function ChildReconciler(shouldTrackSideEffects) {
     return created;
   }
 
-  // function updatePortal(
-  //   returnFiber: Fiber,
-  //   current: Fiber | null,
-  //   portal: ReactPortal,
-  //   lanes: Lanes,
-  // ): Fiber {
-  //   if (
-  //     current === null ||
-  //     current.tag !== HostPortal ||
-  //     current.stateNode.containerInfo !== portal.containerInfo ||
-  //     current.stateNode.implementation !== portal.implementation
-  //   ) {
-  //     // Insert
-  //     const created = createFiberFromPortal(portal, returnFiber.mode, lanes);
-  //     created.return = returnFiber;
-  //     return created;
-  //   } else {
-  //     // Update
-  //     const existing = useFiber(current, portal.children || []);
-  //     existing.return = returnFiber;
-  //     return existing;
-  //   }
-  // }
+  function updatePortal(
+    returnFiber: Fiber,
+    current: Fiber | null,
+    portal: ReactPortal,
+    lanes: Lanes,
+  ): Fiber {
+    if (
+      current === null ||
+      current.tag !== HostPortal ||
+      current.stateNode.containerInfo !== portal.containerInfo ||
+      current.stateNode.implementation !== portal.implementation
+    ) {
+      // Insert
+      const created = createFiberFromPortal(portal, returnFiber.mode, lanes);
+      created.return = returnFiber;
+      return created;
+    } else {
+      // Update
+      const existing = useFiber(current, portal.children || []);
+      existing.return = returnFiber;
+      return existing;
+    }
+  }
 
   function updateFragment(
     returnFiber: Fiber,
@@ -283,71 +292,63 @@ function ChildReconciler(shouldTrackSideEffects) {
     return null;
   }
 
-  // function updateSlot(
-  //   returnFiber: Fiber,
-  //   oldFiber: Fiber | null,
-  //   newChild: any,
-  //   lanes: Lanes,
-  // ): Fiber | null {
-  //   // Update the fiber if the keys match, otherwise return null.
+  function updateSlot(
+    returnFiber: Fiber,
+    oldFiber: Fiber | null,
+    newChild: any,
+    lanes: Lanes,
+  ): Fiber | null {
+    // Update the fiber if the keys match, otherwise return null.
 
-  //   const key = oldFiber !== null ? oldFiber.key : null;
+    const key = oldFiber !== null ? oldFiber.key : null;
 
-  //   if (
-  //     (typeof newChild === 'string' && newChild !== '') ||
-  //     typeof newChild === 'number'
-  //   ) {
-  //     // Text nodes don't have keys. If the previous node is implicitly keyed
-  //     // we can continue to replace it without aborting even if it is not a text
-  //     // node.
-  //     if (key !== null) {
-  //       return null;
-  //     }
-  //     return updateTextNode(returnFiber, oldFiber, '' + newChild, lanes);
-  //   }
+    if (
+      (typeof newChild === 'string' && newChild !== '') ||
+      typeof newChild === 'number'
+    ) {
+      // Text nodes don't have keys. If the previous node is implicitly keyed
+      // we can continue to replace it without aborting even if it is not a text
+      // node.
+      if (key !== null) {
+        return null;
+      }
+      return updateTextNode(returnFiber, oldFiber, '' + newChild, lanes);
+    }
 
-  //   if (typeof newChild === 'object' && newChild !== null) {
-  //     switch (newChild.$$typeof) {
-  //       case REACT_ELEMENT_TYPE: {
-  //         if (newChild.key === key) {
-  //           return updateElement(returnFiber, oldFiber, newChild, lanes);
-  //         } else {
-  //           return null;
-  //         }
-  //       }
-  //       case REACT_PORTAL_TYPE: {
-  //         if (newChild.key === key) {
-  //           return updatePortal(returnFiber, oldFiber, newChild, lanes);
-  //         } else {
-  //           return null;
-  //         }
-  //       }
-  //       case REACT_LAZY_TYPE: {
-  //         const payload = newChild._payload;
-  //         const init = newChild._init;
-  //         return updateSlot(returnFiber, oldFiber, init(payload), lanes);
-  //       }
-  //     }
+    if (typeof newChild === 'object' && newChild !== null) {
+      switch (newChild.$$typeof) {
+        case REACT_ELEMENT_TYPE: {
+          if (newChild.key === key) {
+            return updateElement(returnFiber, oldFiber, newChild, lanes);
+          } else {
+            return null;
+          }
+        }
+        case REACT_PORTAL_TYPE: {
+          if (newChild.key === key) {
+            return updatePortal(returnFiber, oldFiber, newChild, lanes);
+          } else {
+            return null;
+          }
+        }
+        case REACT_LAZY_TYPE: {
+          const payload = newChild._payload;
+          const init = newChild._init;
+          return updateSlot(returnFiber, oldFiber, init(payload), lanes);
+        }
+      }
 
-  //     if (isArray(newChild) || getIteratorFn(newChild)) {
-  //       if (key !== null) {
-  //         return null;
-  //       }
+      if (Array.isArray(newChild) || getIteratorFn(newChild)) {
+        if (key !== null) {
+          return null;
+        }
 
-  //       return updateFragment(returnFiber, oldFiber, newChild, lanes, null);
-  //     }
+        return updateFragment(returnFiber, oldFiber, newChild, lanes, null);
+      }
+    }
 
-  //     throwOnInvalidObjectType(returnFiber, newChild);
-  //   }
-
-  //   if (__DEV__) {
-  //     if (typeof newChild === 'function') {
-  //       warnOnFunctionType(returnFiber);
-  //     }
-  //   }
-
-  //   return null;
-  // }
+    return null;
+  }
 
   function updateFromMap(
     existingChildren: Map<string | number, Fiber>,

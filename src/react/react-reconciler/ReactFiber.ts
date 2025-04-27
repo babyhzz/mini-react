@@ -7,12 +7,12 @@
  * @flow
  */
 
-import { ReactElement, ReactFragment } from '../shared/ReactTypes';
+import { ReactElement, ReactFragment, ReactPortal } from '../shared/ReactTypes';
 import { NoFlags, StaticMask } from './ReactFiberFlags';
 import { Lanes, NoLanes } from './ReactFiberLane';
 import { Fiber } from './ReactInternalTypes';
 import { ConcurrentMode, TypeOfMode } from './ReactTypeOfMode';
-import { ClassComponent, Fragment, HostComponent, HostRoot, HostText, WorkTag } from './ReactWorkTags';
+import { ClassComponent, Fragment, HostComponent, HostPortal, HostRoot, HostText, WorkTag } from './ReactWorkTags';
 
 function FiberNode(
   tag: WorkTag,
@@ -217,5 +217,21 @@ export function createFiberFromFragment(
 ): Fiber {
   const fiber = createFiber(Fragment, elements, key, mode);
   fiber.lanes = lanes;
+  return fiber;
+}
+
+export function createFiberFromPortal(
+  portal: ReactPortal,
+  mode: TypeOfMode,
+  lanes: Lanes,
+): Fiber {
+  const pendingProps = portal.children !== null ? portal.children : [];
+  const fiber = createFiber(HostPortal, pendingProps, portal.key, mode);
+  fiber.lanes = lanes;
+  fiber.stateNode = {
+    containerInfo: portal.containerInfo,
+    pendingChildren: null, // Used by persistent updates
+    implementation: portal.implementation,
+  };
   return fiber;
 }

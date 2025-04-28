@@ -7,7 +7,37 @@ import { RootTag } from "./ReactRootTags";
 import { TypeOfMode } from "./ReactTypeOfMode";
 import { WorkTag } from "./ReactWorkTags";
 
+export type HookType =
+  | 'useState'
+  | 'useReducer'
+  | 'useContext'
+  | 'useRef'
+  | 'useEffect'
+  | 'useInsertionEffect'
+  | 'useLayoutEffect'
+  | 'useCallback'
+  | 'useMemo'
+  | 'useImperativeHandle'
+  | 'useDebugValue'
+  | 'useDeferredValue'
+  | 'useTransition'
+  | 'useMutableSource'
+  | 'useSyncExternalStore'
+  | 'useId'
+  | 'useCacheRefresh';
 
+export type ContextDependency<T> = {
+  context: ReactContext<T>,
+  next: ContextDependency<any> | null,
+  memoizedValue: T,
+  [key: string]: any,
+};
+
+export type Dependencies = {
+  lanes: Lanes,
+  firstContext: ContextDependency<any> | null,
+  [key: string]: any,
+};
 // A Fiber is work on a Component that needs to be done or was done. There can
 // be more than one per component.
 export type Fiber = {

@@ -827,3 +827,31 @@ function ChildReconciler(shouldTrackSideEffects) {
 
 export const reconcileChildFibers = ChildReconciler(true);
 export const mountChildFibers = ChildReconciler(false);
+
+export function cloneChildFibers(
+  current: Fiber | null,
+  workInProgress: Fiber,
+): void {
+  if (current !== null && workInProgress.child !== current.child) {
+    throw new Error('Resuming work not yet implemented.');
+  }
+
+  if (workInProgress.child === null) {
+    return;
+  }
+
+  let currentChild = workInProgress.child;
+  let newChild = createWorkInProgress(currentChild, currentChild.pendingProps);
+  workInProgress.child = newChild;
+
+  newChild.return = workInProgress;
+  while (currentChild.sibling !== null) {
+    currentChild = currentChild.sibling;
+    newChild = newChild.sibling = createWorkInProgress(
+      currentChild,
+      currentChild.pendingProps,
+    );
+    newChild.return = workInProgress;
+  }
+  newChild.sibling = null;
+}

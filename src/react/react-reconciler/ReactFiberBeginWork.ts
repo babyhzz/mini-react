@@ -1,6 +1,6 @@
 import { shouldSetTextContent } from "../react-dom/ReactDOMHostConfig";
 import ReactSharedInternals from "../react/ReactSharedInternals";
-import { mountChildFibers, reconcileChildFibers } from "./ReactChildFiber";
+import { cloneChildFibers, mountChildFibers, reconcileChildFibers } from "./ReactChildFiber";
 import {
   constructClassInstance,
   mountClassInstance,
@@ -10,10 +10,13 @@ import {
   processUpdateQueue,
 } from "./ReactFiberClassUpdateQueue";
 import { ContentReset, PerformedWork, Ref } from "./ReactFiberFlags";
+import { bailoutHooks, checkDidRenderIdHook, renderWithHooks } from "./ReactFiberHooks";
 import { pushHostContainer } from "./ReactFiberHostContext";
-import { Lanes, NoLanes } from "./ReactFiberLane";
+import { includesSomeLane, Lanes, NoLanes } from "./ReactFiberLane";
 import { resolveDefaultProps } from "./ReactFiberLazyComponent";
+import { prepareToReadContext } from "./ReactFiberNewContext";
 import { RootState } from "./ReactFiberRoot";
+import { markSkippedUpdateLanes } from "./ReactFiberWorkLoop";
 import { Fiber, FiberRoot } from "./ReactInternalTypes";
 import {
   ClassComponent,
@@ -127,6 +130,33 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   return workInProgress.child;
 }
 
+
+function bailoutOnAlreadyFinishedWork(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  renderLanes: Lanes,
+): Fiber | null {
+  if (current !== null) {
+    // Reuse previous dependencies
+    workInProgress.dependencies = current.dependencies;
+  }
+
+  markSkippedUpdateLanes(workInProgress.lanes);
+
+  // Check if the children have any pending work.
+  if (!includesSomeLane(renderLanes, workInProgress.childLanes)) {
+    // The children don't have any work either. We can skip them.
+    // TODO: Once we add back resuming, we should check if the children are
+    // a work-in-progress set. If so, we need to transfer their effects.
+    return null;
+  }
+
+  // This fiber doesn't have work, but its subtree does. Clone the child
+  // fibers and continue.
+  cloneChildFibers(current, workInProgress);
+  return workInProgress.child;
+}
+
 function updateFunctionComponent(
   current,
   workInProgress,
@@ -138,28 +168,27 @@ function updateFunctionComponent(
   let nextChildren;
   let hasId;
 
-  // hc: 暂不学习
-  // prepareToReadContext(workInProgress, renderLanes);
+  prepareToReadContext(workInProgress, renderLanes);
 
-  // nextChildren = renderWithHooks(
-  //   current,
-  //   workInProgress,
-  //   Component,
-  //   nextProps,
-  //   context,
-  //   renderLanes
-  // );
-  // hasId = checkDidRenderIdHook();
+  nextChildren = renderWithHooks(
+    current,
+    workInProgress,
+    Component,
+    nextProps,
+    context,
+    renderLanes
+  );
+  hasId = checkDidRenderIdHook();
 
-  // if (current !== null && !didReceiveUpdate) {
-  //   bailoutHooks(current, workInProgress, renderLanes);
-  //   return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
-  // }
+  if (current !== null && !didReceiveUpdate) {
+    bailoutHooks(current, workInProgress, renderLanes);
+    return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
+  }
 
-  // // React DevTools reads this flag.
-  // workInProgress.flags |= PerformedWork;
-  // reconcileChildren(current, workInProgress, nextChildren, renderLanes);
-  // return workInProgress.child;
+  // React DevTools reads this flag.
+  workInProgress.flags |= PerformedWork;
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  return workInProgress.child;
 }
 
 function updateClassComponent(
@@ -252,21 +281,19 @@ function beginWork(
       return null;
     }
     case FunctionComponent: {
-      // hc: 函数组件重点研究
-      // const Component = workInProgress.type;
-      // const unresolvedProps = workInProgress.pendingProps;
-      // const resolvedProps =
-      //   workInProgress.elementType === Component
-      //     ? unresolvedProps
-      //     : resolveDefaultProps(Component, unresolvedProps);
-      // return updateFunctionComponent(
-      //   current,
-      //   workInProgress,
-      //   Component,
-      //   resolvedProps,
-      //   renderLanes
-      // );
-      return null;
+      const Component = workInProgress.type;
+      const unresolvedProps = workInProgress.pendingProps;
+      const resolvedProps =
+        workInProgress.elementType === Component
+          ? unresolvedProps
+          : resolveDefaultProps(Component, unresolvedProps);
+      return updateFunctionComponent(
+        current,
+        workInProgress,
+        Component,
+        resolvedProps,
+        renderLanes
+      );
     }
     case ClassComponent: {
       const Component = workInProgress.type;

@@ -26,6 +26,10 @@ export const IdleLane: Lane = /*                        */ 0b0010000000000000000
 
 const NonIdleLanes: Lanes = /*                          */ 0b0000111111111111111111111111111;
 
+export function includesSomeLane(a: Lanes | Lane, b: Lanes | Lane) {
+  return (a & b) !== NoLanes;
+}
+
 export function getHighestPriorityLane(lanes: Lanes): Lane {
   // 这里取最低位的1，-为按位取反后+1
   return lanes & -lanes;
@@ -231,4 +235,8 @@ export function createLaneMap<T>(initial: T): LaneMap<T> {
     laneMap.push(initial);
   }
   return laneMap;
+}
+
+export function removeLanes(set: Lanes, subset: Lanes | Lane): Lanes {
+  return set & ~subset;
 }

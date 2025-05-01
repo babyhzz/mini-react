@@ -1,14 +1,19 @@
-import './App.css'
-import { Component } from './react/react/ReactBaseClasses';
+import { useEffect } from "react";
+import "./App.css";
+import { useState } from "./react/react/React";
 
-class App extends Component {
-  render() {
-    return (
-      <div>
-        <h1>Hello, world!</h1>
-      </div>
-    );
-  }
+export default function App() {
+  const [count, setCount] = useState(1);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setCount(count => count + 1);
+    }, 10000);
+  }, []);
+
+  return (
+    <div>
+      <h1>{count}</h1>
+    </div>
+  );
 }
-
-export default App

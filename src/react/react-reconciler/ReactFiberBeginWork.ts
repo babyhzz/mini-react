@@ -1,6 +1,10 @@
 import { shouldSetTextContent } from "../react-dom/ReactDOMHostConfig";
 import ReactSharedInternals from "../react/ReactSharedInternals";
-import { cloneChildFibers, mountChildFibers, reconcileChildFibers } from "./ReactChildFiber";
+import {
+  cloneChildFibers,
+  mountChildFibers,
+  reconcileChildFibers,
+} from "./ReactChildFiber";
 import {
   constructClassInstance,
   mountClassInstance,
@@ -10,7 +14,11 @@ import {
   processUpdateQueue,
 } from "./ReactFiberClassUpdateQueue";
 import { ContentReset, PerformedWork, Ref } from "./ReactFiberFlags";
-import { bailoutHooks, checkDidRenderIdHook, renderWithHooks } from "./ReactFiberHooks";
+import {
+  bailoutHooks,
+  checkDidRenderIdHook,
+  renderWithHooks,
+} from "./ReactFiberHooks";
 import { pushHostContainer } from "./ReactFiberHostContext";
 import { includesSomeLane, Lanes, NoLanes } from "./ReactFiberLane";
 import { resolveDefaultProps } from "./ReactFiberLazyComponent";
@@ -29,6 +37,7 @@ import {
   HostPortal,
   HostRoot,
   HostText,
+  IndeterminateComponent,
   LazyComponent,
   MemoComponent,
   Mode,
@@ -130,11 +139,10 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   return workInProgress.child;
 }
 
-
 function bailoutOnAlreadyFinishedWork(
   current: Fiber | null,
   workInProgress: Fiber,
-  renderLanes: Lanes,
+  renderLanes: Lanes
 ): Fiber | null {
   if (current !== null) {
     // Reuse previous dependencies
@@ -268,6 +276,39 @@ function updateHostText(current, workInProgress) {
   return null;
 }
 
+function mountIndeterminateComponent(
+  _current,
+  workInProgress,
+  Component,
+  renderLanes
+) {
+  const props = workInProgress.pendingProps;
+  let context;
+
+  prepareToReadContext(workInProgress, renderLanes);
+  let value;
+  let hasId
+
+  value = renderWithHooks(
+    null,
+    workInProgress,
+    Component,
+    props,
+    context,
+    renderLanes
+  );
+  hasId = checkDidRenderIdHook();
+
+  // React DevTools reads this flag.
+  workInProgress.flags |= PerformedWork;
+
+  // Proceed under the assumption that this is a function component
+  workInProgress.tag = FunctionComponent;
+
+  reconcileChildren(null, workInProgress, value, renderLanes);
+  return workInProgress.child;
+}
+
 function beginWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -276,6 +317,14 @@ function beginWork(
   workInProgress.lanes = NoLanes;
 
   switch (workInProgress.tag) {
+    case IndeterminateComponent: {
+      return mountIndeterminateComponent(
+        current,
+        workInProgress,
+        workInProgress.type,
+        renderLanes
+      );
+    }
     case LazyComponent: {
       // hc: 删除，以后研究
       return null;

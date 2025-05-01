@@ -12,7 +12,7 @@ import { NoFlags, StaticMask } from './ReactFiberFlags';
 import { Lanes, NoLanes } from './ReactFiberLane';
 import { Fiber } from './ReactInternalTypes';
 import { ConcurrentMode, TypeOfMode } from './ReactTypeOfMode';
-import { ClassComponent, Fragment, HostComponent, HostPortal, HostRoot, HostText, WorkTag } from './ReactWorkTags';
+import { ClassComponent, Fragment, HostComponent, HostPortal, HostRoot, HostText, IndeterminateComponent, WorkTag } from './ReactWorkTags';
 
 function FiberNode(
   tag: WorkTag,
@@ -158,7 +158,7 @@ export function createFiberFromTypeAndProps(
   mode: TypeOfMode,
   lanes: Lanes,
 ): Fiber {
-  let fiberTag;
+  let fiberTag: WorkTag = IndeterminateComponent;;
   // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
   let resolvedType = type;
   if (typeof type === 'function') {
@@ -170,7 +170,16 @@ export function createFiberFromTypeAndProps(
     fiberTag = HostComponent;
   }
 
-  // hc 这里创建了新 fiber
+  // hc 这里创建了新 fiber，
+  // hc 函数式组件 fiberTag 为 IndeterminateComponent，后续的 mountIndeterminateComponent 会设置为 FunctionComponent
+  // hc disableModulePatternComponents 标志用来兼容如下两不像的组件，函数返回了一个render方法
+  // function MyComponent() {
+  //   return {
+  //     render() {
+  //       return <div>Hello</div>;
+  //     }
+  //   };
+  // }
   const fiber = createFiber(fiberTag, pendingProps, key, mode);
   fiber.elementType = type;
   fiber.type = resolvedType;

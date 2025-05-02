@@ -127,6 +127,7 @@ function pushHostRootContext(workInProgress) {
 function updateHostRoot(current, workInProgress, renderLanes) {
   pushHostRootContext(workInProgress);
 
+  // hc pendingProps通常为 null
   const nextProps = workInProgress.pendingProps;
   cloneUpdateQueue(current, workInProgress);
   processUpdateQueue(workInProgress, nextProps, null, renderLanes);

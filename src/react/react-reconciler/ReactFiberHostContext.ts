@@ -1,12 +1,13 @@
+import { HostContext } from "../react-dom/ReactDOMHostConfig";
 import { Container } from "./ReactFiberConfig";
 import { createCursor, pop, push, StackCursor } from "./ReactFiberStack";
 import { Fiber } from "./ReactInternalTypes";
 declare class NoContextT {}
 const NO_CONTEXT: NoContextT = {};
 
-// const contextStackCursor: StackCursor<HostContext | NoContextT> = createCursor(
-//   NO_CONTEXT,
-// );
+const contextStackCursor: StackCursor<HostContext | NoContextT> = createCursor(
+  NO_CONTEXT,
+);
 const contextFiberStackCursor: StackCursor<Fiber | NoContextT> = createCursor(
   NO_CONTEXT,
 );
@@ -31,4 +32,10 @@ export function popHostContainer(fiber: Fiber) {
   // pop(contextStackCursor);
   pop(contextFiberStackCursor);
   pop(rootInstanceStackCursor);
+}
+
+export function getHostContext(): HostContext {
+  // TODO 类型不匹配
+  const context = contextStackCursor.current;
+  return context;
 }

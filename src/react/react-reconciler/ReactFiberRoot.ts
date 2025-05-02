@@ -90,6 +90,8 @@ export function createFiberRoot(
   const initialState: RootState = {
     element: initialChildren
   };
+
+  // hc HostRoot 的 memoizedState 存放要渲染的元素
   uninitializedFiber.memoizedState = initialState;
 
   initializeUpdateQueue(uninitializedFiber);

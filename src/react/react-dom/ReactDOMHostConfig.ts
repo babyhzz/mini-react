@@ -12,6 +12,7 @@ import { COMMENT_NODE } from "./HTMLNodeType";
 import setTextContent from "./setTextContent";
 import isCustomComponent from "./isCustomCpomponent";
 
+
 export type Type = string;
 export type Props = {
   autoFocus?: boolean;
@@ -35,6 +36,9 @@ export type SuspenseInstance = Comment & {
   _reactRetry?: () => void;
   [key: string]: any;
 };
+
+type HostContextProd = string;
+export type HostContext = HostContextProd;
 
 export const supportsMutation = true;
 

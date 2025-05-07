@@ -1,9 +1,8 @@
-import { useEffect } from "react";
 import "./App.css";
 import { useState } from "./react/react/React";
 
 export default function App() {
-  // const [count, setCount] = useState(1);
+  const [count, setCount] = useState(1);
 
   // useEffect(() => {
   //   setTimeout(() => {
@@ -13,8 +12,8 @@ export default function App() {
 
   return (
     <div>
-      {/* <h1>{count}</h1> */}
-      <h1>1212121</h1>
+      <h1>{count}</h1>
+      {/* <h1>1212121</h1> */}
     </div>
   );
 }

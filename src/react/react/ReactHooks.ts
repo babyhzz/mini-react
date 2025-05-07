@@ -77,13 +77,13 @@ export function useState<S>(
 //   return dispatcher.useRef(initialValue);
 // }
 
-// export function useEffect(
-//   create: () => (() => void) | void,
-//   deps: Array<mixed> | void | null,
-// ): void {
-//   const dispatcher = resolveDispatcher();
-//   return dispatcher.useEffect(create, deps);
-// }
+export function useEffect(
+  create: () => (() => void) | void,
+  deps: Array<any> | undefined | null,
+): void {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useEffect(create, deps);
+}
 
 // export function useInsertionEffect(
 //   create: () => (() => void) | void,

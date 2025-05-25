@@ -1,5 +1,5 @@
 import { appendInitialChild, createInstance, finalizeInitialChildren, Instance } from "../react-dom/ReactDOMHostConfig";
-import { ForceClientRender, NoFlags, Snapshot, StaticMask, Update } from "./ReactFiberFlags";
+import { ForceClientRender, NoFlags, Ref, Snapshot, StaticMask, Update } from "./ReactFiberFlags";
 import { getHostContext, getRootHostContainer, popHostContainer } from "./ReactFiberHostContext";
 import { Lanes, mergeLanes, NoLanes } from "./ReactFiberLane";
 import { RootState } from "./ReactFiberRoot";
@@ -23,6 +23,10 @@ function markUpdate(workInProgress: Fiber) {
   // Tag the fiber with an update effect. This turns a Placement into
   // a PlacementAndUpdate.
   workInProgress.flags |= Update;
+}
+
+function markRef(workInProgress: Fiber) {
+  workInProgress.flags |= Ref;
 }
 
 function updateHostComponent(
@@ -166,6 +170,7 @@ export function completeWork(
   workInProgress: Fiber,
   renderLanes: Lanes
 ): Fiber | null {
+  console.log("🚀 ~ completeWork:", workInProgress.tag, workInProgress.elementType);
   const newProps = workInProgress.pendingProps;
   switch (workInProgress.tag) {
     case LazyComponent:

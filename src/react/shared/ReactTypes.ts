@@ -7,7 +7,22 @@
  * @flow
  */
 
-export type ReactElement = any;
+export type ReactElement = {
+  /**
+   * hc symbol 类型
+   * export const REACT_ELEMENT_TYPE = Symbol.for('react.element');
+   * export const REACT_PORTAL_TYPE = Symbol.for('react.portal');
+   * ...
+   */
+  $$typeof: any,
+  
+  type: any,
+  key: any,
+  ref: any,
+  props: any,
+  // ReactFiber
+  _owner: any,
+};
 
 export type ReactNode =
   | ReactElement

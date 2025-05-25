@@ -129,12 +129,15 @@ function updateHostRoot(current, workInProgress, renderLanes) {
 
   // hc pendingProps通常为 null
   const nextProps = workInProgress.pendingProps;
+
+  // hc 这两个函数待研究
   cloneUpdateQueue(current, workInProgress);
   processUpdateQueue(workInProgress, nextProps, null, renderLanes);
 
   const nextState: RootState = workInProgress.memoizedState;
   // Caution: React DevTools currently depends on this property
   // being called "element".
+  // hc 这里获取了子节点元素协调
   const nextChildren = nextState.element;
   reconcileChildren(current, workInProgress, nextChildren, renderLanes);
   return workInProgress.child;
@@ -315,6 +318,7 @@ function beginWork(
   workInProgress: Fiber,
   renderLanes: Lanes
 ): Fiber | null {
+  console.log("🚀 ~ beginWork:", workInProgress.tag, workInProgress.elementType);
   workInProgress.lanes = NoLanes;
 
   switch (workInProgress.tag) {

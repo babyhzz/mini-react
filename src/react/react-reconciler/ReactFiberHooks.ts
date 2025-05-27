@@ -46,6 +46,7 @@ export type Hook = {
   memoizedState: any,
   baseState: any,
   baseQueue: Update<any, any> | null,
+  // hc: 注意这个 queue
   queue: any,
   next: Hook | null,
 };
@@ -184,6 +185,7 @@ function mountWorkInProgressHook(): Hook {
     currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
   } else {
     // Append to the end of the list
+    // hc: hook 的链表结构
     workInProgressHook = workInProgressHook.next = hook;
   }
   return workInProgressHook;
@@ -384,6 +386,8 @@ function mountState<S>(
     // @ts-ignore
     initialState = initialState();
   }
+
+  // hc: 初次挂载拿到初始值
   hook.memoizedState = hook.baseState = initialState;
   const queue: UpdateQueue<S, BasicStateAction<S>> = {
     pending: null,
@@ -776,23 +780,13 @@ export function renderWithHooks<Props, SecondArg>(
   nextRenderLanes: Lanes,
 ): any {
   renderLanes = nextRenderLanes;
+
+  // hc: currentlyRenderingFiber 赋值
   currentlyRenderingFiber = workInProgress;
 
   workInProgress.memoizedState = null;
   workInProgress.updateQueue = null;
   workInProgress.lanes = NoLanes;
-
-  // The following should have already been reset
-  // currentHook = null;
-  // workInProgressHook = null;
-
-  // didScheduleRenderPhaseUpdate = false;
-  // localIdCounter = 0;
-
-  // TODO Warn if no hooks are used at all during mount, then some are used during update.
-  // Currently we will identify the update render as a mount because memoizedState === null.
-  // This is tricky because it's valid for certain types of components (e.g. React.lazy)
-
 
   ReactCurrentDispatcher.current =
     current === null || current.memoizedState === null

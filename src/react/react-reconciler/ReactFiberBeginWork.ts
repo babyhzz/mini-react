@@ -318,7 +318,6 @@ function beginWork(
   workInProgress: Fiber,
   renderLanes: Lanes
 ): Fiber | null {
-  console.log("🚀 ~ beginWork:", workInProgress.tag, workInProgress.elementType);
   workInProgress.lanes = NoLanes;
 
   switch (workInProgress.tag) {

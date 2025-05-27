@@ -197,11 +197,25 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     return;
   }
 
-  // Schedule a new callback.
-  let newCallbackNode;
   // We use the highest priority lane to represent the priority of the callback.
   const newCallbackPriority = getHighestPriorityLane(nextLanes);
 
+  // Check if there's an existing task. We may be able to reuse it.
+  const existingCallbackPriority = root.callbackPriority;
+
+  // hc: 优先级相同直接取消
+  if (existingCallbackPriority === newCallbackPriority){
+    return;
+  }
+
+  // hc: 这是调度合并的关键代码，函数组件多次调用 setState 调用 scheduleUpdateOnFiber，这里会取消已存在的调度
+  if (existingCallbackNode != null) {
+    // Cancel the existing callback. We'll schedule a new one below.
+    cancelCallback(existingCallbackNode);
+  }
+
+  // Schedule a new callback.
+  let newCallbackNode;
   let schedulerPriorityLevel: PriorityLevel;
   switch (lanesToEventPriority(nextLanes)) {
     case DiscreteEventPriority:
@@ -225,6 +239,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     performConcurrentWorkOnRoot.bind(null, root)
   );
 
+  // hc: React调度的核心任务
   root.callbackPriority = newCallbackPriority;
   root.callbackNode = newCallbackNode;
 }
@@ -338,10 +353,10 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
     const siblingFiber = completedWork.sibling;
     if (siblingFiber !== null) {
       // If there is more work to do in this returnFiber, do that next.
+      // hc 如果存在兄弟节点，则直接返回，调用 performUnitOfWork 继续工作
       workInProgress = siblingFiber;
       return;
     }
-    // ?: 这里先返回到父节点然后到叔叔节点？
     completedWork = returnFiber;
     // Update the next thing we're working on in case something throws.
     workInProgress = completedWork;

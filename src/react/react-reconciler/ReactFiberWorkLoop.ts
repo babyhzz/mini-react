@@ -203,7 +203,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
   // Check if there's an existing task. We may be able to reuse it.
   const existingCallbackPriority = root.callbackPriority;
 
-  // hc: 优先级相同直接取消
+  // hc: 优先级相同直接返回
   if (existingCallbackPriority === newCallbackPriority){
     return;
   }
@@ -239,7 +239,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     performConcurrentWorkOnRoot.bind(null, root)
   );
 
-  // hc: React调度的核心任务
+  // hc: React调度的核心任务，单个 root，	Scheduler 中的任务数永远只有一个
   root.callbackPriority = newCallbackPriority;
   root.callbackNode = newCallbackNode;
 }
@@ -629,6 +629,7 @@ function performConcurrentWorkOnRoot(root) {
 
   ensureRootIsScheduled(root, now());
   if (root.callbackNode === originalCallbackNode) {
+    // hc 返回新的值用于任务恢复
     return performConcurrentWorkOnRoot.bind(null, root);
   }
   return null;

@@ -78,6 +78,7 @@ function appendAllChildren(
 ) {
   // We only have the top Fiber that was created but we need recurse down its
   // children to find all the terminal nodes.
+  // hc 这里递归插入所有子节点中第一个 node 的 DOM
   let node = workInProgress.child;
   while (node !== null) {
     if (node.tag === HostComponent || node.tag === HostText) {

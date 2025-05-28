@@ -121,12 +121,6 @@ export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
     }
   }
 
-  if (nextLanes === NoLanes) {
-    // This should only be reachable if we're suspended
-    // TODO: Consider warning in this path if a fallback timer is not scheduled.
-    return NoLanes;
-  }
-
   return nextLanes;
 }
 

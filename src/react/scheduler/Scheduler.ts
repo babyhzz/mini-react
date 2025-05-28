@@ -142,6 +142,8 @@ function workLoop(initialTime: number) {
       currentTask.callback = null;
       currentPriorityLevel = currentTask.priorityLevel;
       const didUserCallbackTimeout = currentTask.expirationTime <= currentTime;
+
+      // hc performConcurrentWorkOnRoot 返回了一个函数，因此需要再次调度恢复
       const continuationCallback = callback(didUserCallbackTimeout);
       currentTime = getCurrentTime();
       if (typeof continuationCallback === "function") {
@@ -344,9 +346,11 @@ export function getCurrentPriorityLevel() {
 }
 
 export function cancelCallback(task: Task) {
+
   // Null out the callback to indicate the task has been canceled. (Can't
   // remove from the queue because you can't remove arbitrary nodes from an
   // array based heap, only the first one.)
+  // hc: 这里并没有直接删除节点，而是将 callback 置为 null，简单高效，后续执行会跳过节点
   task.callback = null;
 }
 

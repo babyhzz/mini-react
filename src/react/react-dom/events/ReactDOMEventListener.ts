@@ -101,6 +101,7 @@ export function dispatchEvent(
     return;
   }
 
+  // hc 判断当前事件目标是否对应一个“未完成/挂起”的 React Fiber 节点，从而决定事件是否立即处理或延迟处理
   const blockedOn = findInstanceBlockingEvent(
     domEventName,
     eventSystemFlags,

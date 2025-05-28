@@ -11,23 +11,9 @@ import type {DOMEventName} from './DOMEventNames';
 
 export const allNativeEvents: Set<DOMEventName> = new Set();
 
-/**
- * Mapping from registration name to event name
- * hc: 建立合成事件（Synthetic Events）与原生事件（Native Events）之间的映射关系，
- * 注意映射的原生事件为一个数组
- * {
-  // 基础事件
-  onClick: ['click'],
-  onClickCapture: ['click'],
-  // 复杂事件
-  onChange: ['change', 'click', 'input', 'keydown', 'focusout', ...],
-  onChangeCapture: ['change', 'click', 'input', 'keydown', 'focusout', ...],
-  // 特殊事件
-  onSelect: ['mousedown', 'mouseup', 'selectionchange', ...],
-  // ...其他事件
-}
- */
-
+// hc: 建立合成事件（Synthetic Events）与原生事件（Native Events）之间的映射关系
+// 比如 onChange 并不对应一个原生事件，它需要同时监听多个事件来实现跨平台、跨浏览器一致性：
+// onChange: ['change', 'click', 'input', 'keydown', 'focusout', ...],
 export const registrationNameDependencies = {};
 
 export function registerTwoPhaseEvent(

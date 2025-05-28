@@ -5,7 +5,6 @@ import {
   HostRoot,
   HostText,
 } from "../../react-reconciler/ReactWorkTags";
-import { DOMEventName } from "../DOMEventNames";
 import { COMMENT_NODE, DOCUMENT_NODE } from "../HTMLNodeType";
 import { getClosestInstanceFromNode } from "../ReactDOMComponentTree";
 import {
@@ -26,13 +25,15 @@ import { AnyNativeEvent } from "./PluginModuleType";
 import { createEventListenerWrapperWithPriority } from "./ReactDOMEventListener";
 import { batchedUpdates } from "./ReactDOMUpdateBatching";
 import { ReactSyntheticEvent } from "./ReactSyntheticEventType";
-import * as BeforeInputEventPlugin from './plugins/BeforeInputEventPlugin';
-import * as ChangeEventPlugin from './plugins/ChangeEventPlugin';
-import * as EnterLeaveEventPlugin from './plugins/EnterLeaveEventPlugin';
-import * as SelectEventPlugin from './plugins/SelectEventPlugin';
+// import * as BeforeInputEventPlugin from './plugins/BeforeInputEventPlugin';
+// import * as ChangeEventPlugin from './plugins/ChangeEventPlugin';
+// import * as EnterLeaveEventPlugin from './plugins/EnterLeaveEventPlugin';
+// import * as SelectEventPlugin from './plugins/SelectEventPlugin';
 import * as SimpleEventPlugin from './plugins/SimpleEventPlugin';
 import getListener from "./getListener";
 import { invokeGuardedCallbackAndCatchFirstError, rethrowCaughtError } from "../../shared/ReactErrorUtils";
+import { allNativeEvents } from "./EventRegistry";
+import { DOMEventName } from "./DOMEventNames";
 
 type DispatchListener = {
   instance: null | Fiber;
@@ -47,8 +48,6 @@ type DispatchEntry = {
 
 export type DispatchQueue = Array<DispatchEntry>;
 
-export const allNativeEvents: Set<DOMEventName> = new Set();
-
 /**
  * Mapping from registration name to event name
  */
@@ -59,10 +58,10 @@ const passiveBrowserEventsSupported = true;
 
 // TODO: remove top-level side effect.
 SimpleEventPlugin.registerEvents();
-EnterLeaveEventPlugin.registerEvents();
-ChangeEventPlugin.registerEvents();
-SelectEventPlugin.registerEvents();
-BeforeInputEventPlugin.registerEvents();
+// EnterLeaveEventPlugin.registerEvents();
+// ChangeEventPlugin.registerEvents();
+// SelectEventPlugin.registerEvents();
+// BeforeInputEventPlugin.registerEvents();
 
 function extractEvents(
   dispatchQueue: DispatchQueue,
@@ -107,7 +106,8 @@ function extractEvents(
   // could alter all these plugins to work in such ways, but
   // that might cause other unknown side-effects that we
   // can't foresee right now.
-  if (shouldProcessPolyfillPlugins) {
+  // if (shouldProcessPolyfillPlugins) {
+  if (false) {
     EnterLeaveEventPlugin.extractEvents(
       dispatchQueue,
       domEventName,
@@ -178,6 +178,7 @@ export const mediaEventTypes: Array<DOMEventName> = [
 // We should not delegate these events to the container, but rather
 // set them on the actual target element itself. This is primarily
 // because these events do not consistently bubble in the DOM.
+// hc 这些事件不冒泡，因此不能做事件代理，但一般浏览器都会捕获，因此也在根节点进行捕获阶段的事件绑定
 export const nonDelegatedEvents: Set<DOMEventName> = new Set([
   "cancel",
   "close",
@@ -222,7 +223,6 @@ function addTrappedEventListener(
     }
   }
 
-  // hc: 开始绑定事件
   // TODO: There are too many combinations here. Consolidate them.
   if (isCapturePhaseListener) {
     if (isPassiveListener !== undefined) {

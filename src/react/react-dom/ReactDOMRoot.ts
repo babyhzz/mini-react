@@ -45,7 +45,7 @@ export function createRoot(
     ? container.parentNode as any
     : container;
 
-  // listenToAllSupportedEvents(rootContainerElement);
+  listenToAllSupportedEvents(rootContainerElement);
 
   return new ReactDOMRoot(root);
 }

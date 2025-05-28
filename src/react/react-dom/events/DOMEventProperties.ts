@@ -17,7 +17,7 @@ import {
   TRANSITION_END,
 } from './DOMEventNames';
 
-// hc: DOM原生事件到React事件的映射
+// hc: DOM原生事件到React事件的映射，如 click => onClick
 export const topLevelEventsToReactNames: Map<
   DOMEventName,
   string | null
@@ -104,7 +104,7 @@ const simpleEventPluginEvents = [
 ];
 
 function registerSimpleEvent(domEventName, reactName) {
-  // hc 1. 创建映射的map
+  // hc 创建原生事件到React事件的映射
   topLevelEventsToReactNames.set(domEventName, reactName);
 
   // hc 2. 注册事件，创建 registrationNameDependencies 的映射关系

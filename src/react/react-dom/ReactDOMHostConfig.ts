@@ -1,16 +1,16 @@
-import { DOMEventName } from "./DOMEventNames";
 import {
   DefaultEventPriority,
   EventPriority,
 } from "../react-reconciler/ReactEventPriorities";
 import { getEventPriority } from "./ReactDOMEventListener";
 import { Container } from "../react-reconciler/ReactFiberConfig";
-import { createElement, setInitialProperties } from "./ReactDOMComponent";
+import { createElement, setInitialProperties, updateProperties } from "./ReactDOMComponent";
 import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
 import { Fiber } from "../react-reconciler/ReactInternalTypes";
 import { COMMENT_NODE } from "./HTMLNodeType";
 import setTextContent from "./setTextContent";
 import isCustomComponent from "./isCustomCpomponent";
+import { DOMEventName } from "./events/DOMEventNames";
 
 
 export type Type = string;
@@ -40,6 +40,7 @@ export type SuspenseInstance = Comment & {
 type HostContextProd = string;
 export type HostContext = HostContextProd;
 
+// hc 是否有直接操作DOM能力，浏览器支持
 export const supportsMutation = true;
 
 const SUSPENSE_START_DATA = '$';
@@ -204,4 +205,30 @@ export function commitUpdate(
   // Update the props handle so that we know which props are the ones with
   // with current event handlers.
   updateFiberProps(domElement, newProps);
+}
+
+export function removeChild(
+  parentInstance: Instance,
+  child: Instance | TextInstance | SuspenseInstance,
+): void {
+  parentInstance.removeChild(child);
+}
+
+export function removeChildFromContainer(
+  container: Container,
+  child: Instance | TextInstance | SuspenseInstance,
+): void {
+  if (container.nodeType === COMMENT_NODE) {
+    container.parentNode.removeChild(child);
+  } else {
+    container.removeChild(child);
+  }
+}
+
+export function commitTextUpdate(
+  textInstance: TextInstance,
+  oldText: string,
+  newText: string,
+): void {
+  textInstance.nodeValue = newText;
 }

@@ -2,8 +2,16 @@ import { setValueForStyles } from "./CSSPropertyOperations";
 import { getIntrinsicNamespace, HTML_NAMESPACE } from "./DOMNamespaces";
 import { setValueForProperty } from "./DOMPropertyOperations";
 import { DOCUMENT_NODE } from "./HTMLNodeType";
-import setInnerHTML from "./setInnerHtml";
+import setInnerHTML from "./setInnerHTML";
 import setTextContent from "./setTextContent";
+
+import {
+  updateChecked as ReactDOMInputUpdateChecked,
+  updateWrapper as ReactDOMInputUpdateWrapper,
+} from './ReactDOMInput';
+import {
+  updateWrapper as ReactDOMTextareaUpdateWrapper,
+} from './ReactDOMTextarea';
 
 const DANGEROUSLY_SET_INNER_HTML = 'dangerouslySetInnerHTML';
 const SUPPRESS_CONTENT_EDITABLE_WARNING = 'suppressContentEditableWarning';
@@ -312,20 +320,19 @@ export function updateProperties(
   domElement: Element,
   updatePayload: Array<any>,
   tag: string,
-  lastRawProps: Object,
-  nextRawProps: Object,
+  lastRawProps: any,
+  nextRawProps: any,
 ): void {
-  // hc: 暂先注释
   // Update checked *before* name.
   // In the middle of an update, it is possible to have multiple checked.
   // When a checked radio tries to change name, browser makes another radio's checked false.
-  // if (
-  //   tag === 'input' &&
-  //   nextRawProps.type === 'radio' &&
-  //   nextRawProps.name != null
-  // ) {
-  //   ReactDOMInputUpdateChecked(domElement, nextRawProps);
-  // }
+  if (
+    tag === 'input' &&
+    nextRawProps.type === 'radio' &&
+    nextRawProps.name != null
+  ) {
+    ReactDOMInputUpdateChecked(domElement, nextRawProps);
+  }
 
   const wasCustomComponentTag = isCustomComponent(tag, lastRawProps);
   const isCustomComponentTag = isCustomComponent(tag, nextRawProps);
@@ -337,21 +344,20 @@ export function updateProperties(
     isCustomComponentTag,
   );
 
-  // hc: 暂先注释
-  // switch (tag) {
-  //   case 'input':
-  //     // Update the wrapper around inputs *after* updating props. This has to
-  //     // happen after `updateDOMProperties`. Otherwise HTML5 input validations
-  //     // raise warnings and prevent the new value from being assigned.
-  //     ReactDOMInputUpdateWrapper(domElement, nextRawProps);
-  //     break;
-  //   case 'textarea':
-  //     ReactDOMTextareaUpdateWrapper(domElement, nextRawProps);
-  //     break;
-  //   case 'select':
-  //     // <select> value update needs to occur after <option> children
-  //     // reconciliation
-  //     ReactDOMSelectPostUpdateWrapper(domElement, nextRawProps);
-  //     break;
-  // }
+  switch (tag) {
+    case 'input':
+      // Update the wrapper around inputs *after* updating props. This has to
+      // happen after `updateDOMProperties`. Otherwise HTML5 input validations
+      // raise warnings and prevent the new value from being assigned.
+      ReactDOMInputUpdateWrapper(domElement, nextRawProps);
+      break;
+    case 'textarea':
+      ReactDOMTextareaUpdateWrapper(domElement, nextRawProps);
+      break;
+    case 'select':
+      // <select> value update needs to occur after <option> children
+      // reconciliation
+      // ReactDOMSelectPostUpdateWrapper(domElement, nextRawProps);
+      break;
+  }
 }

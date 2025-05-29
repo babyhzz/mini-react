@@ -1,7 +1,7 @@
 import { SVG_NAMESPACE } from "./DOMNamespaces";
 
 const setInnerHTML = function (
-  node: Element,
+  node: any,
   html: { valueOf(): { toString(): string } }
 ): void {
   if (node.namespaceURI === SVG_NAMESPACE) {

@@ -53,8 +53,8 @@ export type Hook = {
 
 export type Effect = {
   tag: HookFlags,
-  create: () => (() => void) | void,
-  destroy: (() => void) | void,
+  create: () => (() => void) | undefined,
+  destroy: (() => void) | undefined,
   deps: Array<any> | null,
   next: Effect,
 };

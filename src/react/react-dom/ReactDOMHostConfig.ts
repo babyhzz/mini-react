@@ -11,6 +11,7 @@ import { COMMENT_NODE } from "./HTMLNodeType";
 import setTextContent from "./setTextContent";
 import isCustomComponent from "./isCustomCpomponent";
 import { DOMEventName } from "./events/DOMEventNames";
+import { getChildNamespace } from "./DOMNamespaces";
 
 
 export type Type = string;
@@ -231,4 +232,13 @@ export function commitTextUpdate(
   newText: string,
 ): void {
   textInstance.nodeValue = newText;
+}
+
+export function getChildHostContext(
+  parentHostContext: HostContext,
+  type: string,
+  rootContainerInstance: Container,
+): HostContext {
+  const parentNamespace = parentHostContext;
+  return getChildNamespace(parentNamespace, type);
 }

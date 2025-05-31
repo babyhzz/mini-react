@@ -21,7 +21,7 @@ import {
 
 import type {Flags} from './ReactFiberFlags';
 import { requestEventTime, requestUpdateLane, scheduleUpdateOnFiber } from "./ReactFiberWorkLoop";
-import { enqueueConcurrentHookUpdate } from "./ReactFiberConcurrentUpdates";
+import { enqueueConcurrentHookUpdate, enqueueConcurrentHookUpdateAndEagerlyBailout } from "./ReactFiberConcurrentUpdates";
 import { markWorkInProgressReceivedUpdate } from "./ReactFiberBeginWork";
 
 const {ReactCurrentDispatcher, ReactCurrentBatchConfig} = ReactSharedInternals;
@@ -353,16 +353,14 @@ function dispatchSetState<S, A>(
           // without calling the reducer again.
           update.hasEagerState = true;
           update.eagerState = eagerState;
-          // hc 注释掉，用不到？
-          // if (is(eagerState, currentState)) {
-          //   // Fast path. We can bail out without scheduling React to re-render.
-          //   // It's still possible that we'll need to rebase this update later,
-          //   // if the component re-renders for a different reason and by that
-          //   // time the reducer has changed.
-          //   // TODO: Do we still need to entangle transitions in this case?
-          //   enqueueConcurrentHookUpdateAndEagerlyBailout(fiber, queue, update);
-          //   return;
-          // }
+          if (Object.is(eagerState, currentState)) {
+            // Fast path. We can bail out without scheduling React to re-render.
+            // It's still possible that we'll need to rebase this update later,
+            // if the component re-renders for a different reason and by that
+            // time the reducer has changed.
+            enqueueConcurrentHookUpdateAndEagerlyBailout(fiber, queue, update);
+            return;
+          }
         } catch (error) {
           // Suppress the error. It will throw again in the render phase.
         } finally {

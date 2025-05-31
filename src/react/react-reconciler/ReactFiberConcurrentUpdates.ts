@@ -171,3 +171,18 @@ export function enqueueConcurrentHookUpdate<S, A>(
   enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
   return getRootForUpdatedFiber(fiber);
 }
+
+export function enqueueConcurrentHookUpdateAndEagerlyBailout<S, A>(
+  fiber: Fiber,
+  queue: HookQueue<S, A>,
+  update: HookUpdate<S, A>,
+): void {
+  // This function is used to queue an update that doesn't need a rerender. The
+  // only reason we queue it is in case there's a subsequent higher priority
+  // update that causes it to be rebased.
+  const lane = NoLane;
+  const concurrentQueue: ConcurrentQueue = queue;
+  const concurrentUpdate: ConcurrentUpdate = update;
+  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
+}
+

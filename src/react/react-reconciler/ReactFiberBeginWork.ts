@@ -13,13 +13,13 @@ import {
   cloneUpdateQueue,
   processUpdateQueue,
 } from "./ReactFiberClassUpdateQueue";
-import { ContentReset, PerformedWork, Ref } from "./ReactFiberFlags";
+import { ContentReset, DidCapture, ForceUpdateForLegacySuspense, NoFlags, PerformedWork, Ref } from "./ReactFiberFlags";
 import {
   bailoutHooks,
   checkDidRenderIdHook,
   renderWithHooks,
 } from "./ReactFiberHooks";
-import { pushHostContainer } from "./ReactFiberHostContext";
+import { pushHostContainer, pushHostContext } from "./ReactFiberHostContext";
 import { includesSomeLane, Lanes, NoLanes } from "./ReactFiberLane";
 import { resolveDefaultProps } from "./ReactFiberLazyComponent";
 import { prepareToReadContext } from "./ReactFiberNewContext";
@@ -313,11 +313,98 @@ function mountIndeterminateComponent(
   return workInProgress.child;
 }
 
+function checkScheduledUpdateOrContext(
+  current: Fiber,
+  renderLanes: Lanes,
+): boolean {
+  // Before performing an early bailout, we must check if there are pending
+  // updates or context.
+  const updateLanes = current.lanes;
+  if (includesSomeLane(updateLanes, renderLanes)) {
+    return true;
+  }
+  
+  return false;
+}
+
+function attemptEarlyBailoutIfNoScheduledUpdate(
+  current: Fiber,
+  workInProgress: Fiber,
+  renderLanes: Lanes,
+) {
+  // This fiber does not have any pending work. Bailout without entering
+  // the begin phase. There's still some bookkeeping we that needs to be done
+  // in this optimized path, mostly pushing stuff onto the stack.
+  switch (workInProgress.tag) {
+    case HostRoot:
+      pushHostRootContext(workInProgress);
+      break;
+    case HostComponent:
+      pushHostContext(workInProgress);
+      break;
+    case ClassComponent: {
+      break;
+    }
+    case HostPortal:
+      pushHostContainer(workInProgress, workInProgress.stateNode.containerInfo);
+      break;
+    // hc 删除其他的组件
+  }
+  return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
+}
+
 function beginWork(
   current: Fiber | null,
   workInProgress: Fiber,
   renderLanes: Lanes
 ): Fiber | null {
+
+  // hc: 没有任何更新的就直接跳过
+  if (current !== null) {
+    const oldProps = current.memoizedProps;
+    const newProps = workInProgress.pendingProps;
+
+    if (oldProps !== newProps) {
+      // If props or context changed, mark the fiber as having performed work.
+      // This may be unset if the props are determined to be equal later (memo).
+      didReceiveUpdate = true;
+    } else {
+      // Neither props nor legacy context changes. Check if there's a pending
+      // update or context change.
+      const hasScheduledUpdateOrContext = checkScheduledUpdateOrContext(
+        current,
+        renderLanes,
+      );
+      if (
+        !hasScheduledUpdateOrContext &&
+        // If this is the second pass of an error or suspense boundary, there
+        // may not be work scheduled on `current`, so we check for this flag.
+        (workInProgress.flags & DidCapture) === NoFlags
+      ) {
+        // No pending updates or context. Bail out now.
+        didReceiveUpdate = false;
+        return attemptEarlyBailoutIfNoScheduledUpdate(
+          current,
+          workInProgress,
+          renderLanes,
+        );
+      }
+      if ((current.flags & ForceUpdateForLegacySuspense) !== NoFlags) {
+        // This is a special case that only exists for legacy mode.
+        // See https://github.com/facebook/react/pull/19216.
+        didReceiveUpdate = true;
+      } else {
+        // An update was scheduled on this fiber, but there are no new props
+        // nor legacy context. Set this to false. If an update queue or context
+        // consumer produces a changed value, it will set this to true. Otherwise,
+        // the component will assume the children have not changed and bail out.
+        didReceiveUpdate = false;
+      }
+    }
+  } else {
+    didReceiveUpdate = false;
+  }
+
   workInProgress.lanes = NoLanes;
 
   switch (workInProgress.tag) {

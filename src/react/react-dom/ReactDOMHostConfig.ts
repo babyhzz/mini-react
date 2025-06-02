@@ -4,7 +4,7 @@ import {
 } from "../react-reconciler/ReactEventPriorities";
 import { getEventPriority } from "./ReactDOMEventListener";
 import { Container } from "../react-reconciler/ReactFiberConfig";
-import { createElement, setInitialProperties, updateProperties } from "./ReactDOMComponent";
+import { createElement, createTextNode, setInitialProperties, updateProperties } from "./ReactDOMComponent";
 import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
 import { Fiber } from "../react-reconciler/ReactInternalTypes";
 import { COMMENT_NODE } from "./HTMLNodeType";
@@ -241,4 +241,15 @@ export function getChildHostContext(
 ): HostContext {
   const parentNamespace = parentHostContext;
   return getChildNamespace(parentNamespace, type);
+}
+
+export function createTextInstance(
+  text: string,
+  rootContainerInstance: Container,
+  hostContext: HostContext,
+  internalInstanceHandle: Fiber,
+): TextInstance {
+  const textNode: TextInstance = createTextNode(text, rootContainerInstance);
+  precacheFiberNode(internalInstanceHandle, textNode);
+  return textNode;
 }

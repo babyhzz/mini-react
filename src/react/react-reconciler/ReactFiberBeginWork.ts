@@ -358,7 +358,6 @@ function beginWork(
   workInProgress: Fiber,
   renderLanes: Lanes
 ): Fiber | null {
-
   // hc: 没有任何更新的就直接跳过
   if (current !== null) {
     const oldProps = current.memoizedProps;

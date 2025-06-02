@@ -361,3 +361,12 @@ export function updateProperties(
       break;
   }
 }
+
+export function createTextNode(
+  text: string,
+  rootContainerElement: Element | Document | DocumentFragment,
+): Text {
+  return getOwnerDocumentFromRootContainer(rootContainerElement).createTextNode(
+    text,
+  );
+}

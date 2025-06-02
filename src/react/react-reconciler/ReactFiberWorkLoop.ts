@@ -562,7 +562,9 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
       // hc: 这里 while 并不是一个循环，workLoopSync 是一个 while 无限循环
       workLoopSync();
       break;
-    } catch (thrownValue) {}
+    } catch (thrownValue) {
+      console.log("🚀 ~ renderRootSync ~ thrownValue:", thrownValue)
+    }
   } while (true);
 
   executionContext = prevExecutionContext;

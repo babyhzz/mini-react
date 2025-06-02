@@ -1,4 +1,4 @@
-import { appendInitialChild, createInstance, finalizeInitialChildren, Instance } from "../react-dom/ReactDOMHostConfig";
+import { appendInitialChild, createInstance, createTextInstance, finalizeInitialChildren, Instance } from "../react-dom/ReactDOMHostConfig";
 import { ForceClientRender, NoFlags, Ref, Snapshot, StaticMask, Update } from "./ReactFiberFlags";
 import { getHostContext, getRootHostContainer, popHostContainer } from "./ReactFiberHostContext";
 import { Lanes, mergeLanes, NoLanes } from "./ReactFiberLane";
@@ -166,6 +166,19 @@ function bubbleProperties(completedWork: Fiber) {
 }
 
 
+function updateHostText(
+  current: Fiber,
+  workInProgress: Fiber,
+  oldText: string,
+  newText: string,
+) {
+  // If the text differs, mark it as an update. All the work in done in commitWork.
+  if (oldText !== newText) {
+    markUpdate(workInProgress);
+  }
+};
+
+
 export function completeWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -265,39 +278,25 @@ export function completeWork(
       return null;
     }
     case HostText: {
-      // const newText = newProps;
-      // if (current && workInProgress.stateNode != null) {
-      //   const oldText = current.memoizedProps;
-      //   // If we have an alternate, that means this is an update and we need
-      //   // to schedule a side-effect to do the updates.
-      //   updateHostText(current, workInProgress, oldText, newText);
-      // } else {
-      //   if (typeof newText !== "string") {
-      //     if (workInProgress.stateNode === null) {
-      //       throw new Error(
-      //         "We must have new props for new mounts. This error is likely " +
-      //           "caused by a bug in React. Please file an issue."
-      //       );
-      //     }
-      //     // This can happen when we abort work.
-      //   }
-      //   const rootContainerInstance = getRootHostContainer();
-      //   const currentHostContext = getHostContext();
-      //   const wasHydrated = popHydrationState(workInProgress);
-      //   if (wasHydrated) {
-      //     if (prepareToHydrateHostTextInstance(workInProgress)) {
-      //       markUpdate(workInProgress);
-      //     }
-      //   } else {
-      //     workInProgress.stateNode = createTextInstance(
-      //       newText,
-      //       rootContainerInstance,
-      //       currentHostContext,
-      //       workInProgress
-      //     );
-      //   }
-      // }
-      // bubbleProperties(workInProgress);
+      const newText = newProps;
+      if (current && workInProgress.stateNode != null) {
+        const oldText = current.memoizedProps;
+        // If we have an alternate, that means this is an update and we need
+        // to schedule a side-effect to do the updates.
+        updateHostText(current, workInProgress, oldText, newText);
+      } else {
+        const rootContainerInstance = getRootHostContainer();
+        const currentHostContext = getHostContext();
+
+        // hc: commit阶段创建了 text 节点
+        workInProgress.stateNode = createTextInstance(
+          newText,
+          rootContainerInstance,
+          currentHostContext,
+          workInProgress
+        );
+      }
+      bubbleProperties(workInProgress);
       return null;
     }
   }

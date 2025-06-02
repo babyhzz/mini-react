@@ -24,15 +24,14 @@ const HTML = '__html';
 function getOwnerDocumentFromRootContainer(
   rootContainerElement: Element | Document | DocumentFragment,
 ): Document {
-  // @ts-ignore
   return rootContainerElement.nodeType === DOCUMENT_NODE
-    ? rootContainerElement
+    ? rootContainerElement as Document
     : rootContainerElement.ownerDocument;
 }
 
 export function createElement(
   type: string,
-  props: Object,
+  props: any,
   rootContainerElement: Element | Document | DocumentFragment,
   parentNamespace: string,
 ): Element {
@@ -93,7 +92,7 @@ export function createElement(
 
 
 
-function isCustomComponent(tagName: string, props: Object) {
+function isCustomComponent(tagName: string, props: any) {
   if (tagName.indexOf('-') === -1) {
     return typeof props.is === 'string';
   }

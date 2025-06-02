@@ -36,6 +36,10 @@ h1 {
   display: block;
 }
 
+h2 {
+  display: block;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;

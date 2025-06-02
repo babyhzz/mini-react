@@ -10,16 +10,17 @@ export default function App() {
     setCount((count) => count + 1);
   };
 
-  // const handleClick2 = () => {
-  //   console.log("handleClick", count2);
-  //   setCount2((count) => count + 1);
-  // };
+  const handleClick2 = (e) => {
+    e.stopPropagation();
+    console.log("handleClick", count2);
+    setCount2((count) => count + 1);
+  };
+
   return (
     <div>
       <h1 onClick={handleClick}>
         {count}
-        <h2>{count2}</h2>
-        {/* <h2 onClick={handleClick2}>{count2}</h2> */}
+        <h2 onClick={handleClick2}>{count2}</h2>
       </h1>
 
       <h1>1212121</h1>

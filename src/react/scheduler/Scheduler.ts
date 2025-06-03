@@ -9,7 +9,6 @@ import {
 
 import { push, pop, peek } from "./SchedulerMinHeap";
 
-// TODO: Use symbols?
 import {
   ImmediatePriority,
   UserBlockingPriority,
@@ -51,6 +50,8 @@ var maxSigned31BitInt = 1073741823;
 
 // Tasks are stored on a min heap
 var taskQueue: Array<Task> = [];
+// hc: 存储 “未来才会变得可执行的任务”，也叫 延时任务队列。
+// 如果发现 timerQueue 中的某些任务的 startTime <= now，就会把它们“激活，转入 taskQueue
 var timerQueue: Array<Task> = [];
 
 // Incrementing id counter. Used to maintain insertion order.
@@ -60,8 +61,9 @@ var currentTask: any = null;
 var currentPriorityLevel = NormalPriority;
 
 // This is set while performing work, to prevent re-entrance.
+// hc: 指示是否在一个时间切片调度内，类似锁的概念
 var isPerformingWork = false;
-
+// hc: 是否已经被调度
 var isHostCallbackScheduled = false;
 var isHostTimeoutScheduled = false;
 
@@ -143,12 +145,13 @@ function workLoop(initialTime: number) {
       currentPriorityLevel = currentTask.priorityLevel;
       const didUserCallbackTimeout = currentTask.expirationTime <= currentTime;
 
-      // hc performConcurrentWorkOnRoot 返回了一个函数，因此需要再次调度恢复
+      // hc: performConcurrentWorkOnRoot 返回了一个函数，因此需要再次调度恢复
       const continuationCallback = callback(didUserCallbackTimeout);
       currentTime = getCurrentTime();
       if (typeof continuationCallback === "function") {
         // If a continuation is returned, immediately yield to the main thread
         // regardless of how much time is left in the current time slice.
+        // hc: 任务没有执行完，重新放入任务池
         currentTask.callback = continuationCallback;
         advanceTimers(currentTime);
         return true;
@@ -252,8 +255,6 @@ function shouldYieldToHost(): boolean {
   return true;
 }
 
-function requestPaint() {}
-
 function forceFrameRate(fps: number) {
   if (fps < 0 || fps > 125) {
     // Using console['error'] to evade Babel and ESLint
@@ -276,7 +277,6 @@ const performWorkUntilDeadline = () => {
     const currentTime = getCurrentTime();
     // Keep track of the start time so we can measure how long the main thread
     // has been blocked.
-    // 全局变量，shouldYield函数会用到
     startTime = currentTime;
 
     // If a scheduler task throws, exit the current browser task so the
@@ -346,26 +346,12 @@ export function getCurrentPriorityLevel() {
 }
 
 export function cancelCallback(task: Task) {
-
   // Null out the callback to indicate the task has been canceled. (Can't
   // remove from the queue because you can't remove arbitrary nodes from an
   // array based heap, only the first one.)
-  // hc: 这里并没有直接删除节点，而是将 callback 置为 null，简单高效，后续执行会跳过节点
+  // hc: 出于性能因素的考虑，这里并没有直接删除节点，而是将 callback 置为 null
   task.callback = null;
 }
-
-// export function requestPaint() {
-//   if (
-//     enableIsInputPending &&
-//     navigator !== undefined &&
-//     navigator.scheduling !== undefined &&
-//     navigator.scheduling.isInputPending !== undefined
-//   ) {
-//     needsPaint = true;
-//   }
-
-//   // Since we yield every frame regardless, `requestPaint` has no effect.
-// }
 
 export {
   shouldYieldToHost as shouldYield,

@@ -50,9 +50,6 @@ var maxSigned31BitInt = 1073741823;
 
 // Tasks are stored on a min heap
 var taskQueue: Array<Task> = [];
-// hc: 存储 “未来才会变得可执行的任务”，也叫 延时任务队列。
-// 如果发现 timerQueue 中的某些任务的 startTime <= now，就会把它们“激活，转入 taskQueue
-var timerQueue: Array<Task> = [];
 
 // Incrementing id counter. Used to maintain insertion order.
 var taskIdCounter = 1;
@@ -65,59 +62,15 @@ var currentPriorityLevel = NormalPriority;
 var isPerformingWork = false;
 // hc: 是否已经被调度
 var isHostCallbackScheduled = false;
-var isHostTimeoutScheduled = false;
 
 var currentPriorityLevel = NormalPriority;
 
 // Capture local references to native APIs, in case a polyfill overrides them.
 const localSetTimeout = setTimeout;
-const localClearTimeout = clearTimeout;
-
-function advanceTimers(currentTime: number) {
-  // Check for tasks that are no longer delayed and add them to the queue.
-  let timer = peek(timerQueue);
-  while (timer !== null) {
-    if (timer.callback === null) {
-      // Timer was cancelled.
-      pop(timerQueue);
-    } else if (timer.startTime <= currentTime) {
-      // Timer fired. Transfer to the task queue.
-      pop(timerQueue);
-      timer.sortIndex = timer.expirationTime;
-      push(taskQueue, timer);
-    } else {
-      // Remaining timers are pending.
-      return;
-    }
-    timer = peek(timerQueue);
-  }
-}
-
-function handleTimeout(currentTime: number) {
-  isHostTimeoutScheduled = false;
-  advanceTimers(currentTime);
-
-  if (!isHostCallbackScheduled) {
-    if (peek(taskQueue) !== null) {
-      isHostCallbackScheduled = true;
-      requestHostCallback();
-    } else {
-      const firstTimer = peek(timerQueue);
-      if (firstTimer !== null) {
-        requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
-      }
-    }
-  }
-}
 
 function flushWork(initialTime: number) {
   // We'll need a host callback the next time work is scheduled.
   isHostCallbackScheduled = false;
-  if (isHostTimeoutScheduled) {
-    // We scheduled a timeout but it's no longer needed. Cancel it.
-    isHostTimeoutScheduled = false;
-    cancelHostTimeout();
-  }
 
   isPerformingWork = true;
   const previousPriorityLevel = currentPriorityLevel;
@@ -132,7 +85,6 @@ function flushWork(initialTime: number) {
 
 function workLoop(initialTime: number) {
   let currentTime = initialTime;
-  advanceTimers(currentTime);
   currentTask = peek(taskQueue);
   while (currentTask !== null) {
     if (currentTask.expirationTime > currentTime && shouldYieldToHost()) {
@@ -153,13 +105,11 @@ function workLoop(initialTime: number) {
         // regardless of how much time is left in the current time slice.
         // hc: 任务没有执行完，重新放入任务池
         currentTask.callback = continuationCallback;
-        advanceTimers(currentTime);
         return true;
       } else {
         if (currentTask === peek(taskQueue)) {
           pop(taskQueue);
         }
-        advanceTimers(currentTime);
       }
     } else {
       pop(taskQueue);
@@ -170,10 +120,6 @@ function workLoop(initialTime: number) {
   if (currentTask !== null) {
     return true;
   } else {
-    const firstTimer = peek(timerQueue);
-    if (firstTimer !== null) {
-      requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
-    }
     return false;
   }
 }
@@ -235,8 +181,6 @@ export function scheduleCallback(
 }
 
 let isMessageLoopRunning = false;
-let taskTimeoutID: number = -1;
-
 // Scheduler periodically yields in case there is other work on the main
 // thread, like user events. By default, it yields multiple times per frame.
 // It does not attempt to align with frame boundaries, since most tasks don't
@@ -255,23 +199,6 @@ function shouldYieldToHost(): boolean {
   return true;
 }
 
-function forceFrameRate(fps: number) {
-  if (fps < 0 || fps > 125) {
-    // Using console['error'] to evade Babel and ESLint
-    console["error"](
-      "forceFrameRate takes a positive int between 0 and 125, " +
-        "forcing frame rates higher than 125 fps is not supported"
-    );
-    return;
-  }
-  if (fps > 0) {
-    frameInterval = Math.floor(1000 / fps);
-  } else {
-    // reset the framerate
-    frameInterval = frameYieldMs;
-  }
-}
-
 const performWorkUntilDeadline = () => {
   if (isMessageLoopRunning) {
     const currentTime = getCurrentTime();
@@ -279,9 +206,6 @@ const performWorkUntilDeadline = () => {
     // has been blocked.
     startTime = currentTime;
 
-    // If a scheduler task throws, exit the current browser task so the
-    // error can be observed.
-    //
     // Intentionally not using a try-catch, since that makes some debugging
     // techniques harder. Instead, if `flushWork` errors, then `hasMoreWork` will
     // remain true, and we'll continue the work loop.
@@ -313,7 +237,6 @@ if (typeof MessageChannel !== "undefined") {
 } else {
   // We should only fallback here in non-browser environments.
   schedulePerformWorkUntilDeadline = () => {
-    // $FlowFixMe[not-a-function] nullable value
     localSetTimeout(performWorkUntilDeadline, 0);
   };
 }
@@ -323,22 +246,6 @@ function requestHostCallback() {
     isMessageLoopRunning = true;
     schedulePerformWorkUntilDeadline();
   }
-}
-
-function requestHostTimeout(
-  callback: (currentTime: number) => void,
-  ms: number
-) {
-  // $FlowFixMe[not-a-function] nullable value
-  taskTimeoutID = localSetTimeout(() => {
-    callback(getCurrentTime());
-  }, ms);
-}
-
-function cancelHostTimeout() {
-  // $FlowFixMe[not-a-function] nullable value
-  localClearTimeout(taskTimeoutID);
-  taskTimeoutID = -1;
 }
 
 export function getCurrentPriorityLevel() {

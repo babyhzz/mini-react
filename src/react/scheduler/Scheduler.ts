@@ -58,15 +58,21 @@ var currentTask: any = null;
 var currentPriorityLevel = NormalPriority;
 
 // This is set while performing work, to prevent re-entrance.
-// hc: 指示是否在一个时间切片调度内，类似锁的概念
+// hc: 表示是否正在进行任务回调（一个时间切片）
 var isPerformingWork = false;
-// hc: 是否已经被调度
+// hc: 表示是否已经有一个任务被安排执行
 var isHostCallbackScheduled = false;
+// hc: 表示是否进入了消息循环
+let isMessageLoopRunning = false;
+// Scheduler periodically yields in case there is other work on the main
+// thread, like user events. By default, it yields multiple times per frame.
+// It does not attempt to align with frame boundaries, since most tasks don't
+// need to be frame aligned; for those that do, use requestAnimationFrame.
+let frameInterval = frameYieldMs;
+let startTime = -1;
+
 
 var currentPriorityLevel = NormalPriority;
-
-// Capture local references to native APIs, in case a polyfill overrides them.
-const localSetTimeout = setTimeout;
 
 function flushWork(initialTime: number) {
   // We'll need a host callback the next time work is scheduled.
@@ -103,7 +109,7 @@ function workLoop(initialTime: number) {
       if (typeof continuationCallback === "function") {
         // If a continuation is returned, immediately yield to the main thread
         // regardless of how much time is left in the current time slice.
-        // hc: 任务没有执行完，重新放入任务池
+        // hc: 任务没有执行完，重新放入任务池，继续调度执行
         currentTask.callback = continuationCallback;
         return true;
       } else {
@@ -118,6 +124,7 @@ function workLoop(initialTime: number) {
   }
   // Return whether there's additional work
   if (currentTask !== null) {
+    // hc：还有未完成的任务，继续调度执行
     return true;
   } else {
     return false;
@@ -172,6 +179,7 @@ export function scheduleCallback(
   push(taskQueue, newTask);
   // Schedule a host callback, if needed. If we're already performing work,
   // wait until the next time we yield.
+  // hc: 如果没有一个被调度Callback并且没有在执行任务，开启调度
   if (!isHostCallbackScheduled && !isPerformingWork) {
     isHostCallbackScheduled = true;
     requestHostCallback();
@@ -179,14 +187,6 @@ export function scheduleCallback(
 
   return newTask;
 }
-
-let isMessageLoopRunning = false;
-// Scheduler periodically yields in case there is other work on the main
-// thread, like user events. By default, it yields multiple times per frame.
-// It does not attempt to align with frame boundaries, since most tasks don't
-// need to be frame aligned; for those that do, use requestAnimationFrame.
-let frameInterval = frameYieldMs;
-let startTime = -1;
 
 function shouldYieldToHost(): boolean {
   const timeElapsed = getCurrentTime() - startTime;
@@ -216,6 +216,7 @@ const performWorkUntilDeadline = () => {
       if (hasMoreWork) {
         // If there's more work, schedule the next message event at the end
         // of the preceding one.
+        // hc：还有任务未完成，继续调度执行
         schedulePerformWorkUntilDeadline();
       } else {
         isMessageLoopRunning = false;
@@ -237,7 +238,7 @@ if (typeof MessageChannel !== "undefined") {
 } else {
   // We should only fallback here in non-browser environments.
   schedulePerformWorkUntilDeadline = () => {
-    localSetTimeout(performWorkUntilDeadline, 0);
+    setTimeout(performWorkUntilDeadline, 0);
   };
 }
 

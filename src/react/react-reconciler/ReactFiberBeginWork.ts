@@ -280,6 +280,16 @@ function updateHostText(current, workInProgress) {
   return null;
 }
 
+function updateFragment(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  renderLanes: Lanes,
+) {
+  const nextChildren = workInProgress.pendingProps;
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  return workInProgress.child;
+}
+
 function mountIndeterminateComponent(
   _current,
   workInProgress,
@@ -474,8 +484,8 @@ function beginWork(
     //     renderLanes,
     //   );
     // }
-    // case Fragment:
-    //   return updateFragment(current, workInProgress, renderLanes);
+    case Fragment:
+      return updateFragment(current, workInProgress, renderLanes);
     // case Mode:
     // case ContextProvider:
     //   return updateContextProvider(current, workInProgress, renderLanes);

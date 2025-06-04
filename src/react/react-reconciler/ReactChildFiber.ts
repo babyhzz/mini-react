@@ -286,6 +286,7 @@ function ChildReconciler(shouldTrackSideEffects) {
         }
       }
 
+      // hc 数组类型，创建 Fragment 节点
       if (Array.isArray(newChild) || getIteratorFn(newChild)) {
         const created = createFiberFromFragment(
           newChild,

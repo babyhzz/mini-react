@@ -21,6 +21,7 @@ const RESERVED_PROPS = {
   const ReactElement = function(type, key, ref, self, source, owner, props) {
     const element = {
       // This tag allows us to uniquely identify this as a React Element
+      // hc 用于标识是一个 React Element 对象，区别与普通对象
       $$typeof: Symbol.for('react.element'),
   
       // Built-in properties that belong on the element

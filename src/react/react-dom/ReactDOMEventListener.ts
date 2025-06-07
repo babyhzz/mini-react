@@ -103,6 +103,7 @@ export function getEventPriority(domEventName: DOMEventName): EventPriority {
       // We might be in the Scheduler callback.
       // Eventually this mechanism will be replaced by a check
       // of the current priority on the native scheduler.
+      // hc: message消息和 MessageChannel 什么关系？ChatGPT说两个事件是无关的，这里只是用任务优先级推测
       const schedulerPriority = getCurrentSchedulerPriorityLevel();
       switch (schedulerPriority) {
         case ImmediateSchedulerPriority:

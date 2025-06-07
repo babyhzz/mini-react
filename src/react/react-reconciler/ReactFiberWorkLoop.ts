@@ -500,20 +500,19 @@ function commitRootImpl(
 
     const prevExecutionContext = executionContext;
 
-    // hc: 1. Commit阶段
     executionContext |= CommitContext;
 
     ReactCurrentOwner.current = null;
 
-    // hc: 2. mutation阶段
+    // hc: mutation阶段
     commitMutationEffects(root, finishedWork, lanes);
 
-    // hc 重置了什么？
+    // hc: 重置了什么？
     // resetAfterCommit(root.containerInfo);
 
     root.current = finishedWork;
  
-    // hc: 2. Layout阶段，学习，useLayoutEffect执行的地方
+    // hc: Layout阶段，学习，useLayoutEffect执行的地方
     // commitLayoutEffects(finishedWork, root, lanes);
 
     // Tell Scheduler to yield at the end of the frame, so the browser has an

@@ -1,1 +1,1 @@
-export { useState } from "./ReactHooks";
+export { useState, useEffect } from "./ReactHooks";

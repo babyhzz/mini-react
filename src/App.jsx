@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState } from "./react/react/React";
+import { useState, useEffect } from "./react/react/React";
 
 // export default function App() {
 //   return (
@@ -18,6 +18,10 @@ export default function App() {
     console.log("handleClick", count);
     setCount((count) => count + 1);
   };
+
+  useEffect(() => {
+    console.log('useEffect!!!!!!!!!');
+  }, []);
 
   const handleClick2 = (e) => {
     e.stopPropagation();

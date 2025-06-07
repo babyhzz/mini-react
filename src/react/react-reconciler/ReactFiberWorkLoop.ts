@@ -28,7 +28,11 @@ import {
 } from "./ReactEventPriorities";
 import { createWorkInProgress } from "./ReactFiber";
 import { beginWork } from "./ReactFiberBeginWork";
-import { commitMutationEffects, commitPassiveMountEffects, commitPassiveUnmountEffects } from "./ReactFiberCommitWork";
+import {
+  commitMutationEffects,
+  commitPassiveMountEffects,
+  commitPassiveUnmountEffects,
+} from "./ReactFiberCommitWork";
 import { completeWork } from "./ReactFiberCompleteWork";
 import {
   finishQueueingConcurrentUpdates,
@@ -205,7 +209,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
   const existingCallbackPriority = root.callbackPriority;
 
   // hc: 优先级相同直接返回
-  if (existingCallbackPriority === newCallbackPriority){
+  if (existingCallbackPriority === newCallbackPriority) {
     return;
   }
 
@@ -259,7 +263,7 @@ function flushPassiveEffectsImpl() {
   pendingPassiveEffectsLanes = NoLanes;
 
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
-    throw new Error('Cannot flush passive effects while already rendering.');
+    throw new Error("Cannot flush passive effects while already rendering.");
   }
 
   const prevExecutionContext = executionContext;
@@ -267,7 +271,6 @@ function flushPassiveEffectsImpl() {
 
   commitPassiveUnmountEffects(root.current); // cleanup函数
   commitPassiveMountEffects(root, root.current, lanes, null);
-
 
   executionContext = prevExecutionContext;
 
@@ -500,6 +503,20 @@ function commitRootImpl(
   transitions: Array<any> | null,
   renderPriorityLevel: EventPriority
 ) {
+  do {
+    // `flushPassiveEffects` will call `flushSyncUpdateQueue` at the end, which
+    // means `flushPassiveEffects` will sometimes result in additional
+    // passive effects. So we need to keep flushing in a loop until there are
+    // no more pending effects.
+    // TODO: Might be better if `flushPassiveEffects` did not automatically
+    // flush synchronous work at the end, to avoid factoring hazards like this.
+    flushPassiveEffects();
+  } while (rootWithPendingPassiveEffects !== null);
+
+  if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
+    throw new Error("Should not already be working.");
+  }
+
   const finishedWork = root.finishedWork;
   const lanes = root.finishedLanes;
 
@@ -542,7 +559,7 @@ function commitRootImpl(
       });
     }
   }
-  
+
   const subtreeHasEffects =
     (finishedWork.subtreeFlags &
       (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) !==
@@ -569,7 +586,7 @@ function commitRootImpl(
     // resetAfterCommit(root.containerInfo);
 
     root.current = finishedWork;
- 
+
     // hc: Layout阶段，学习，useLayoutEffect执行的地方
     // commitLayoutEffects(finishedWork, root, lanes);
 
@@ -585,6 +602,14 @@ function commitRootImpl(
   } else {
     // No effects.
     root.current = finishedWork;
+  }
+
+  if (rootDoesHavePassiveEffects) {
+    // This commit has passive effects. Stash a reference to them. But don't
+    // schedule a callback until after flushing layout work.
+    rootDoesHavePassiveEffects = false;
+    rootWithPendingPassiveEffects = root;
+    pendingPassiveEffectsLanes = lanes;
   }
 
   // Read this again, since an effect might have updated it
@@ -620,7 +645,7 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
       workLoopSync();
       break;
     } catch (thrownValue) {
-      console.log("🚀 ~ renderRootSync ~ thrownValue:", thrownValue)
+      console.log("🚀 ~ renderRootSync ~ thrownValue:", thrownValue);
     }
   } while (true);
 
@@ -714,6 +739,6 @@ export function getExecutionContext(): ExecutionContext {
 export function markSkippedUpdateLanes(lane: Lane | Lanes): void {
   workInProgressRootSkippedLanes = mergeLanes(
     lane,
-    workInProgressRootSkippedLanes,
+    workInProgressRootSkippedLanes
   );
 }

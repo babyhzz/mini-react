@@ -95,6 +95,8 @@ export type Fiber = {
   memoizedProps: any, // The props used to create the output.
 
   // A queue of state updates and callbacks.
+  // hc: 分如下几种情况 
+  // 1. 函数式组件存放 effect 副作用列表
   updateQueue: any,
 
   // The state used to create the output

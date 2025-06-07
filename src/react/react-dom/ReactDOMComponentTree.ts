@@ -167,3 +167,13 @@ export function getFiberCurrentPropsFromNode(
 ): Props {
   return node[internalPropsKey] || null;
 }
+
+export function detachDeletedInstance(node: Instance): void {
+  // TODO: This function is only called on host components. I don't think all of
+  // these fields are relevant.
+  delete node[internalInstanceKey];
+  delete node[internalPropsKey];
+  delete node[internalEventHandlersKey];
+  delete node[internalEventHandlerListenersKey];
+  delete node[internalEventHandlesSetKey];
+}

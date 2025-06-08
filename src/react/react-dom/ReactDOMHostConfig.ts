@@ -4,7 +4,12 @@ import {
 } from "../react-reconciler/ReactEventPriorities";
 import { getEventPriority } from "./ReactDOMEventListener";
 import { Container } from "../react-reconciler/ReactFiberConfig";
-import { createElement, createTextNode, setInitialProperties, updateProperties } from "./ReactDOMComponent";
+import {
+  createElement,
+  createTextNode,
+  setInitialProperties,
+  updateProperties,
+} from "./ReactDOMComponent";
 import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
 import { Fiber } from "../react-reconciler/ReactInternalTypes";
 import { COMMENT_NODE } from "./HTMLNodeType";
@@ -12,7 +17,6 @@ import setTextContent from "./setTextContent";
 import isCustomComponent from "./isCustomCpomponent";
 import { DOMEventName } from "./events/DOMEventNames";
 import { getChildNamespace } from "./DOMNamespaces";
-
 
 export type Type = string;
 export type Props = {
@@ -44,10 +48,10 @@ export type HostContext = HostContextProd;
 // hc 是否有直接操作DOM能力，浏览器支持
 export const supportsMutation = true;
 
-const SUSPENSE_START_DATA = '$';
-const SUSPENSE_END_DATA = '/$';
-const SUSPENSE_PENDING_START_DATA = '$?';
-const SUSPENSE_FALLBACK_START_DATA = '$!';
+const SUSPENSE_START_DATA = "$";
+const SUSPENSE_END_DATA = "/$";
+const SUSPENSE_PENDING_START_DATA = "$?";
+const SUSPENSE_FALLBACK_START_DATA = "$!";
 
 export function getCurrentEventPriority(): EventPriority {
   const currentEvent = window.event;
@@ -161,7 +165,7 @@ export function finalizeInitialChildren(
 // SuspenseInstance. I.e. if its previous sibling is a Comment with
 // SUSPENSE_x_START_DATA. Otherwise, null.
 export function getParentSuspenseInstance(
-  targetInstance: Node,
+  targetInstance: Node
 ): null | SuspenseInstance {
   let node = targetInstance.previousSibling;
   // Skip past all nodes within this suspense boundary.
@@ -170,14 +174,14 @@ export function getParentSuspenseInstance(
   let depth = 0;
   while (node) {
     if (node.nodeType === COMMENT_NODE) {
-      const data = ((node as any).data as string);
+      const data = (node as any).data as string;
       if (
         data === SUSPENSE_START_DATA ||
         data === SUSPENSE_FALLBACK_START_DATA ||
         data === SUSPENSE_PENDING_START_DATA
       ) {
         if (depth === 0) {
-          return ((node as any) as SuspenseInstance);
+          return node as any as SuspenseInstance;
         } else {
           depth--;
         }
@@ -191,7 +195,43 @@ export function getParentSuspenseInstance(
 }
 
 export function resetTextContent(domElement: Instance): void {
-  setTextContent(domElement, '');
+  setTextContent(domElement, "");
+}
+
+export function commitMount(
+  domElement: Instance,
+  type: string,
+  newProps: Props,
+  internalInstanceHandle: Object
+): void {
+  // Despite the naming that might imply otherwise, this method only
+  // fires if there is an `Update` effect scheduled during mounting.
+  // This happens if `finalizeInitialChildren` returns `true` (which it
+  // does to implement the `autoFocus` attribute on the client). But
+  // there are also other cases when this might happen (such as patching
+  // up text content during hydration mismatch). So we'll check this again.
+  switch (type) {
+    case "button":
+    case "input":
+    case "select":
+    case "textarea":
+      if (newProps.autoFocus) {
+        (
+          domElement as
+            | HTMLButtonElement
+            | HTMLInputElement
+            | HTMLSelectElement
+            | HTMLTextAreaElement
+        ).focus();
+      }
+      return;
+    case "img": {
+      if ((newProps as any).src) {
+        (domElement as HTMLImageElement).src = newProps.src;
+      }
+      return;
+    }
+  }
 }
 
 export function commitUpdate(
@@ -199,7 +239,7 @@ export function commitUpdate(
   updatePayload: Array<any>,
   type: string,
   oldProps: Props,
-  newProps: Props,
+  newProps: Props
 ): void {
   // Apply the diff to the DOM node.
   updateProperties(domElement, updatePayload, type, oldProps, newProps);
@@ -210,14 +250,14 @@ export function commitUpdate(
 
 export function removeChild(
   parentInstance: Instance,
-  child: Instance | TextInstance | SuspenseInstance,
+  child: Instance | TextInstance | SuspenseInstance
 ): void {
   parentInstance.removeChild(child);
 }
 
 export function removeChildFromContainer(
   container: Container,
-  child: Instance | TextInstance | SuspenseInstance,
+  child: Instance | TextInstance | SuspenseInstance
 ): void {
   if (container.nodeType === COMMENT_NODE) {
     container.parentNode.removeChild(child);
@@ -229,7 +269,7 @@ export function removeChildFromContainer(
 export function commitTextUpdate(
   textInstance: TextInstance,
   oldText: string,
-  newText: string,
+  newText: string
 ): void {
   textInstance.nodeValue = newText;
 }
@@ -237,7 +277,7 @@ export function commitTextUpdate(
 export function getChildHostContext(
   parentHostContext: HostContext,
   type: string,
-  rootContainerInstance: Container,
+  rootContainerInstance: Container
 ): HostContext {
   const parentNamespace = parentHostContext;
   return getChildNamespace(parentNamespace, type);
@@ -247,9 +287,13 @@ export function createTextInstance(
   text: string,
   rootContainerInstance: Container,
   hostContext: HostContext,
-  internalInstanceHandle: Fiber,
+  internalInstanceHandle: Fiber
 ): TextInstance {
   const textNode: TextInstance = createTextNode(text, rootContainerInstance);
   precacheFiberNode(internalInstanceHandle, textNode);
   return textNode;
+}
+
+export function getPublicInstance(instance: Instance): Instance {
+  return instance;
 }

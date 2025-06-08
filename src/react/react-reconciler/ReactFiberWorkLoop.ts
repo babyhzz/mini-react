@@ -29,6 +29,7 @@ import {
 import { createWorkInProgress } from "./ReactFiber";
 import { beginWork } from "./ReactFiberBeginWork";
 import {
+  commitLayoutEffects,
   commitMutationEffects,
   commitPassiveMountEffects,
   commitPassiveUnmountEffects,
@@ -588,7 +589,7 @@ function commitRootImpl(
     root.current = finishedWork;
 
     // hc: Layout阶段，学习，useLayoutEffect执行的地方
-    // commitLayoutEffects(finishedWork, root, lanes);
+    commitLayoutEffects(finishedWork, root, lanes);
 
     // Tell Scheduler to yield at the end of the frame, so the browser has an
     // opportunity to paint.

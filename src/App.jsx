@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useEffect } from "./react/react/React";
+import { useState, useEffect, useLayoutEffect } from "./react/react/React";
 
 // export default function App() {
 //   return (
@@ -22,6 +22,11 @@ export default function App() {
   useEffect(() => {
     console.log('useEffect!!!!!!!!!');
   }, []);
+
+  useLayoutEffect(() => {
+    console.log('useLayoutEffect!!!!!!!!!');
+  }, []);
+
 
   const handleClick2 = (e) => {
     e.stopPropagation();

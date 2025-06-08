@@ -288,3 +288,35 @@ export function resetHasForceUpdateBeforeProcessing() {
 export function checkHasForceUpdateAfterProcessing(): boolean {
   return hasForceUpdate;
 }
+
+function callCallback(callback, context) {
+  if (typeof callback !== 'function') {
+    throw new Error(
+      'Invalid argument passed as callback. Expected a function. Instead ' +
+        `received: ${callback}`,
+    );
+  }
+
+  callback.call(context);
+}
+
+export function commitUpdateQueue(
+  finishedWork: Fiber,
+  finishedQueue: UpdateQueue,
+  instance: any,
+): void {
+  // Commit the effects
+  const effects = finishedQueue.effects;
+  finishedQueue.effects = null;
+  if (effects !== null) {
+    for (let i = 0; i < effects.length; i++) {
+      const effect = effects[i];
+      const callback = effect.callback;
+      if (callback !== null) {
+        effect.callback = null;
+        callCallback(callback, instance);
+      }
+    }
+  }
+}
+

@@ -93,13 +93,13 @@ export function useEffect(
 //   return dispatcher.useInsertionEffect(create, deps);
 // }
 
-// export function useLayoutEffect(
-//   create: () => (() => void) | void,
-//   deps: Array<mixed> | void | null,
-// ): void {
-//   const dispatcher = resolveDispatcher();
-//   return dispatcher.useLayoutEffect(create, deps);
-// }
+export function useLayoutEffect(
+  create: () => (() => void) | void,
+  deps: Array<any> | void | null,
+): void {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useLayoutEffect(create, deps);
+}
 
 // export function useCallback<T>(
 //   callback: T,

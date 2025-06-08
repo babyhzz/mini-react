@@ -1,2 +1,3 @@
-待办：
-1. 调试 useLayoutEffect   
+调试：
+
+- [x] useLayoutEffect 调试

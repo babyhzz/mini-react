@@ -1,8 +1,10 @@
 import {
   appendChild,
   appendChildToContainer,
+  commitMount,
   commitTextUpdate,
   commitUpdate,
+  getPublicInstance,
   insertBefore,
   insertInContainerBefore,
   Instance,
@@ -16,6 +18,7 @@ import { Container } from "./ReactFiberConfig";
 import {
   ChildDeletion,
   ContentReset,
+  LayoutMask,
   MutationMask,
   NoFlags,
   Passive,
@@ -48,6 +51,9 @@ import {
 } from "./ReactHookEffectTags";
 import { deletedTreeCleanUpLevel } from "../shared/ReactFeatureFlags";
 import { detachDeletedInstance } from "../react-dom/ReactDOMComponentTree";
+import { ConcurrentMode, NoMode } from "./ReactTypeOfMode";
+import { commitUpdateQueue, UpdateQueue } from "./ReactFiberClassUpdateQueue";
+import { resolveDefaultProps } from "./ReactFiberLazyComponent";
 
 // Used for Profiling builds to track updaters.
 let inProgressLanes: Lanes | null = null;
@@ -579,7 +585,6 @@ function commitPassiveUnmountEffectsInsideOfDeletedTree_begin(
   }
 }
 
-
 function detachFiberAfterEffects(fiber: Fiber) {
   const alternate = fiber.alternate;
   if (alternate !== null) {
@@ -777,7 +782,7 @@ function commitPassiveMountEffects_begin(
   subtreeRoot: Fiber,
   root: FiberRoot,
   committedLanes: Lanes,
-  committedTransitions: Array<any> | null,
+  committedTransitions: Array<any> | null
 ) {
   while (nextEffect !== null) {
     const fiber = nextEffect;
@@ -790,7 +795,7 @@ function commitPassiveMountEffects_begin(
         subtreeRoot,
         root,
         committedLanes,
-        committedTransitions,
+        committedTransitions
       );
     }
   }
@@ -800,7 +805,7 @@ function commitPassiveMountEffects_complete(
   subtreeRoot: Fiber,
   root: FiberRoot,
   committedLanes: Lanes,
-  committedTransitions: Array<any> | null,
+  committedTransitions: Array<any> | null
 ) {
   while (nextEffect !== null) {
     const fiber = nextEffect;
@@ -811,7 +816,7 @@ function commitPassiveMountEffects_complete(
           root,
           fiber,
           committedLanes,
-          committedTransitions,
+          committedTransitions
         );
       } catch (error) {
         // captureCommitPhaseError(fiber, fiber.return, error);
@@ -838,13 +843,13 @@ function commitPassiveMountOnFiber(
   finishedRoot: FiberRoot,
   finishedWork: Fiber,
   committedLanes: Lanes,
-  committedTransitions: Array<any> | null,
+  committedTransitions: Array<any> | null
 ): void {
   switch (finishedWork.tag) {
     case FunctionComponent:
     case ForwardRef:
     case SimpleMemoComponent: {
-        commitHookEffectListMount(HookPassive | HookHasEffect, finishedWork);
+      commitHookEffectListMount(HookPassive | HookHasEffect, finishedWork);
       break;
     }
     case HostRoot: {
@@ -857,18 +862,16 @@ export function commitPassiveMountEffects(
   root: FiberRoot,
   finishedWork: Fiber,
   committedLanes: Lanes,
-  committedTransitions: Array<any> | null,
+  committedTransitions: Array<any> | null
 ): void {
   nextEffect = finishedWork;
   commitPassiveMountEffects_begin(
     finishedWork,
     root,
     committedLanes,
-    committedTransitions,
+    committedTransitions
   );
 }
-
-
 
 export function commitMutationEffects(
   root: FiberRoot,
@@ -1046,4 +1049,182 @@ function commitPlacement(finishedWork: Fiber): void {
           "in React. Please file an issue."
       );
   }
+}
+
+function commitLayoutEffects_begin(
+  subtreeRoot: Fiber,
+  root: FiberRoot,
+  committedLanes: Lanes
+) {
+  while (nextEffect !== null) {
+    const fiber = nextEffect;
+    const firstChild = fiber.child;
+
+    if ((fiber.subtreeFlags & LayoutMask) !== NoFlags && firstChild !== null) {
+      firstChild.return = fiber;
+      nextEffect = firstChild;
+    } else {
+      commitLayoutMountEffects_complete(subtreeRoot, root, committedLanes);
+    }
+  }
+}
+
+function commitLayoutMountEffects_complete(
+  subtreeRoot: Fiber,
+  root: FiberRoot,
+  committedLanes: Lanes
+) {
+  while (nextEffect !== null) {
+    const fiber = nextEffect;
+    if ((fiber.flags & LayoutMask) !== NoFlags) {
+      const current = fiber.alternate;
+      try {
+        commitLayoutEffectOnFiber(root, current, fiber, committedLanes);
+      } catch (error) {
+        // captureCommitPhaseError(fiber, fiber.return, error);
+      }
+    }
+
+    if (fiber === subtreeRoot) {
+      nextEffect = null;
+      return;
+    }
+
+    const sibling = fiber.sibling;
+    if (sibling !== null) {
+      sibling.return = fiber.return;
+      nextEffect = sibling;
+      return;
+    }
+
+    nextEffect = fiber.return;
+  }
+}
+
+function commitLayoutEffectOnFiber(
+  finishedRoot: FiberRoot,
+  current: Fiber | null,
+  finishedWork: Fiber,
+  committedLanes: Lanes
+): void {
+  if ((finishedWork.flags & LayoutMask) !== NoFlags) {
+    switch (finishedWork.tag) {
+      case FunctionComponent:
+      case ForwardRef:
+      case SimpleMemoComponent: {
+        commitHookEffectListMount(HookLayout | HookHasEffect, finishedWork);
+        break;
+      }
+      case ClassComponent: {
+        const instance = finishedWork.stateNode;
+        if (finishedWork.flags & Update) {
+          if (current === null) {
+            instance.componentDidMount();
+          } else {
+            const prevProps =
+              finishedWork.elementType === finishedWork.type
+                ? current.memoizedProps
+                : resolveDefaultProps(finishedWork.type, current.memoizedProps);
+            const prevState = current.memoizedState;
+            instance.componentDidUpdate(
+              prevProps,
+              prevState,
+              instance.__reactInternalSnapshotBeforeUpdate
+            );
+          }
+        }
+
+        const updateQueue: UpdateQueue | null = finishedWork.updateQueue;
+        if (updateQueue !== null) {
+          commitUpdateQueue(finishedWork, updateQueue, instance);
+        }
+        break;
+      }
+      case HostRoot: {
+        const updateQueue: UpdateQueue | null = finishedWork.updateQueue;
+        if (updateQueue !== null) {
+          let instance = null;
+          if (finishedWork.child !== null) {
+            switch (finishedWork.child.tag) {
+              case HostComponent:
+                instance = getPublicInstance(finishedWork.child.stateNode);
+                break;
+              case ClassComponent:
+                instance = finishedWork.child.stateNode;
+                break;
+            }
+          }
+          commitUpdateQueue(finishedWork, updateQueue, instance);
+        }
+        break;
+      }
+      case HostComponent: {
+        const instance: Instance = finishedWork.stateNode;
+
+        // Renderers may schedule work to be done after host components are mounted
+        // (eg DOM renderer may schedule auto-focus for inputs and form controls).
+        // These effects should only be committed when components are first mounted,
+        // aka when there is no current/alternate.
+        if (current === null && finishedWork.flags & Update) {
+          const type = finishedWork.type;
+          const props = finishedWork.memoizedProps;
+          commitMount(instance, type, props, finishedWork);
+        }
+
+        break;
+      }
+      case HostText: {
+        // We have no life-cycles associated with text.
+        break;
+      }
+      case HostPortal: {
+        // We have no life-cycles associated with portals.
+        break;
+      }
+      default:
+        throw new Error(
+          "This unit of work tag should not have side-effects. This error is " +
+            "likely caused by a bug in React. Please file an issue."
+        );
+    }
+  }
+
+  if (finishedWork.flags & Ref) {
+    commitAttachRef(finishedWork);
+  }
+}
+
+function commitAttachRef(finishedWork: Fiber) {
+  const ref = finishedWork.ref;
+  if (ref !== null) {
+    const instance = finishedWork.stateNode;
+    let instanceToUse;
+    switch (finishedWork.tag) {
+      case HostComponent:
+        instanceToUse = getPublicInstance(instance);
+        break;
+      default:
+        instanceToUse = instance;
+    }
+    if (typeof ref === "function") {
+      ref(instanceToUse);
+    } else {
+      ref.current = instanceToUse;
+    }
+  }
+}
+
+export function commitLayoutEffects(
+  finishedWork: Fiber,
+  root: FiberRoot,
+  committedLanes: Lanes
+): void {
+  inProgressLanes = committedLanes;
+  inProgressRoot = root;
+  nextEffect = finishedWork;
+
+  commitLayoutEffects_begin(finishedWork, root, committedLanes);
+
+  inProgressLanes = null;
+  inProgressRoot = null;
 }

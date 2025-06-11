@@ -65,6 +65,7 @@ export type Fiber = {
   type: any,
 
   // The local state associated with this fiber.
+  // hc: class组件对应类实例，HostComponent/HostText对应DOM节点
   stateNode: any,
 
   // Conceptual aliases

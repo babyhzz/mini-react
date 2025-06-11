@@ -1,11 +1,10 @@
 import {
   ContinuousEventPriority,
+  DefaultEventPriority,
   DiscreteEventPriority,
   EventPriority,
-  DefaultEventPriority,
   IdleEventPriority,
 } from "../react-reconciler/ReactEventPriorities";
-import { DOMEventName } from "./DOMEventNames";
 import { getCurrentPriorityLevel as getCurrentSchedulerPriorityLevel } from "../scheduler/Scheduler";
 
 import {
@@ -15,6 +14,7 @@ import {
   NormalPriority as NormalSchedulerPriority,
   UserBlockingPriority as UserBlockingSchedulerPriority,
 } from "../scheduler/SchedulerPriorities";
+import { DOMEventName } from "./events/DOMEventNames";
 
 export function getEventPriority(domEventName: DOMEventName): EventPriority {
   switch (domEventName) {

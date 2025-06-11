@@ -1,7 +1,3 @@
-
-
-// Use to restore controlled state after a change event has fired.
-
 import { getFiberCurrentPropsFromNode, getInstanceFromNode } from "../ReactDOMComponentTree";
 
 let restoreImpl = null;

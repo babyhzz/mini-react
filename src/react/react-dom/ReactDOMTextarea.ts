@@ -1,4 +1,4 @@
-import { getToStringValue, toString } from "./toStringValue";
+import { getToStringValue, toString } from "./ToStringValue";
 
 export function updateWrapper(element: Element, props: any) {
   const node = element as any;

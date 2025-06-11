@@ -2,8 +2,11 @@ import {
   DefaultEventPriority,
   EventPriority,
 } from "../react-reconciler/ReactEventPriorities";
-import { getEventPriority } from "./ReactDOMEventListener";
 import { Container } from "../react-reconciler/ReactFiberConfig";
+import { Fiber } from "../react-reconciler/ReactInternalTypes";
+import { getChildNamespace } from "./DOMNamespaces";
+import { DOMEventName } from "./events/DOMEventNames";
+import { COMMENT_NODE } from "./HTMLNodeType";
 import {
   createElement,
   createTextNode,
@@ -11,12 +14,8 @@ import {
   updateProperties,
 } from "./ReactDOMComponent";
 import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
-import { Fiber } from "../react-reconciler/ReactInternalTypes";
-import { COMMENT_NODE } from "./HTMLNodeType";
+import { getEventPriority } from "./ReactDOMEventListener";
 import setTextContent from "./setTextContent";
-import isCustomComponent from "./isCustomCpomponent";
-import { DOMEventName } from "./events/DOMEventNames";
-import { getChildNamespace } from "./DOMNamespaces";
 
 export type Type = string;
 export type Props = {

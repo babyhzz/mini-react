@@ -1,6 +1,6 @@
 import { setValueForProperty } from "./DOMPropertyOperations";
 import getActiveElement from "./getActiveElement";
-import { getToStringValue, toString } from "./toStringValue";
+import { getToStringValue, toString } from "./ToStringValue";
 
 export function updateChecked(element: Element, props: any) {
   const node = element;

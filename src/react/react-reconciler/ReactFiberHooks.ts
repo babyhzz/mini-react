@@ -24,7 +24,7 @@ import { requestEventTime, requestUpdateLane, scheduleUpdateOnFiber } from "./Re
 import { enqueueConcurrentHookUpdate, enqueueConcurrentHookUpdateAndEagerlyBailout } from "./ReactFiberConcurrentUpdates";
 import { markWorkInProgressReceivedUpdate } from "./ReactFiberBeginWork";
 
-const {ReactCurrentDispatcher, ReactCurrentBatchConfig} = ReactSharedInternals;
+const {ReactCurrentDispatcher} = ReactSharedInternals;
 
 export type Update<S, A> = {
   lane: Lane,
@@ -43,10 +43,10 @@ export type UpdateQueue<S, A> = {
 };
 
 export type Hook = {
+  // hc: useState/useReducer存的是state，useEffect/useLayoutEffect存的是effect单向循环列表
   memoizedState: any,
   baseState: any,
   baseQueue: Update<any, any> | null,
-  // hc: 注意这个 queue
   queue: any,
   next: Hook | null,
 };
@@ -466,6 +466,7 @@ function updateWorkInProgressHook(): Hook {
   return workInProgressHook;
 }
 
+// hc: 检查依赖性是否发生变化
 function areHookInputsEqual(
   nextDeps: Array<any>,
   prevDeps: Array<any> | null,

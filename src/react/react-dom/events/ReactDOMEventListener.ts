@@ -6,15 +6,12 @@ import {
   setCurrentUpdatePriority,
 } from "../../react-reconciler/ReactEventPriorities";
 import { Container } from "../../react-reconciler/ReactFiberConfig";
-import { isRootDehydrated } from "../../react-reconciler/ReactFiberShellHydration";
-import { getContainerFromFiber, getNearestMountedFiber, getSuspenseInstanceFromFiber } from "../../react-reconciler/ReactFiberTreeReflection";
-import { FiberRoot } from "../../react-reconciler/ReactInternalTypes";
+import { getNearestMountedFiber, getSuspenseInstanceFromFiber } from "../../react-reconciler/ReactFiberTreeReflection";
 import { HostRoot, SuspenseComponent } from "../../react-reconciler/ReactWorkTags";
-import ReactCurrentBatchConfig from "../../react/ReactCurrentBatchConfig";
-import { DOMEventName } from "../DOMEventNames";
 import { getClosestInstanceFromNode } from "../ReactDOMComponentTree";
 import { getEventPriority } from "../ReactDOMEventListener";
 import { SuspenseInstance } from "../ReactDOMHostConfig";
+import { DOMEventName } from "./DOMEventNames";
 import { dispatchEventForPluginEventSystem } from "./DOMPluginEventSystem";
 import { EventSystemFlags } from "./EventSystemFlags";
 import getEventTarget from "./getEventTarget";
@@ -41,8 +38,6 @@ export function findInstanceBlockingEvent(
   targetContainer: EventTarget,
   nativeEvent: AnyNativeEvent,
 ): null | Container | SuspenseInstance {
-  // TODO: Warn if _enabled is false.
-
   return_targetInst = null;
 
   const nativeEventTarget = getEventTarget(nativeEvent);
@@ -69,12 +64,6 @@ export function findInstanceBlockingEvent(
         // TODO: Warn.
         targetInst = null;
       } else if (tag === HostRoot) {
-        const root: FiberRoot = nearestMounted.stateNode;
-        if (isRootDehydrated(root)) {
-          // If this happens during a replay something went wrong and it might block
-          // the whole system.
-          return getContainerFromFiber(nearestMounted);
-        }
         targetInst = null;
       } else if (nearestMounted !== targetInst) {
         // If we get an event (ex: img onload) before committing that
@@ -137,14 +126,11 @@ function dispatchDiscreteEvent(
   nativeEvent
 ) {
   const previousPriority = getCurrentUpdatePriority();
-  const prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = null;
   try {
     setCurrentUpdatePriority(DiscreteEventPriority);
     dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
   } finally {
     setCurrentUpdatePriority(previousPriority);
-    ReactCurrentBatchConfig.transition = prevTransition;
   }
 }
 
@@ -155,14 +141,11 @@ function dispatchContinuousEvent(
   nativeEvent
 ) {
   const previousPriority = getCurrentUpdatePriority();
-  const prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = null;
   try {
     setCurrentUpdatePriority(ContinuousEventPriority);
     dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
   } finally {
     setCurrentUpdatePriority(previousPriority);
-    ReactCurrentBatchConfig.transition = prevTransition;
   }
 }
 

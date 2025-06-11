@@ -186,7 +186,7 @@ export type FiberRoot = {
   callbackNode: any,
   callbackPriority: Lane,
 
-    // * 下面两个全局记录各优先级触发时间和过期时间，用于辅助调度
+  // * 下面两个全局记录各优先级触发时间和过期时间，用于辅助调度
   // hc 记录各个优先级Lane上事件发生的时间
   eventTimes: LaneMap<number>,
   // hc 记录各个优先级Lane上任务的过期时间
@@ -197,15 +197,10 @@ export type FiberRoot = {
   pendingLanes: Lanes,
   suspendedLanes: Lanes,
   pingedLanes: Lanes,
-  // warmLanes: Lanes,
+
   expiredLanes: Lanes,
-  // errorRecoveryDisabledLanes: Lanes,
-  // shellSuspendCounter: number,
 
   finishedLanes: Lanes,
-
-  // entangledLanes: Lanes,
-  // entanglements: LaneMap<Lanes>,
 };
 
 

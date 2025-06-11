@@ -2,9 +2,7 @@ import { scheduleCallback } from "../scheduler/Scheduler";
 import { ImmediatePriority } from "../scheduler/SchedulerPriorities";
 import { DiscreteEventPriority, getCurrentUpdatePriority, setCurrentUpdatePriority } from "./ReactEventPriorities";
 
-// let syncQueue: Array<SchedulerCallback> | null = null;
 let syncQueue: Array<any> | null = null;
-let includesLegacySyncCallbacks: boolean = false;
 let isFlushingSyncQueue: boolean = false;
 
 export function flushSyncCallbacks() {
@@ -26,7 +24,6 @@ export function flushSyncCallbacks() {
         } while (callback !== null);
       }
       syncQueue = null;
-      includesLegacySyncCallbacks = false;
     } catch (error) {
       // If something throws, leave the remaining callbacks on the queue.
       if (syncQueue !== null) {

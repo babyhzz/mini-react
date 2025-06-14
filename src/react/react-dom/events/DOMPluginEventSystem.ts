@@ -186,10 +186,6 @@ export const nonDelegatedEvents: Set<DOMEventName> = new Set([
   "load",
   "scroll",
   "toggle",
-  // In order to reduce bytes, we insert the above array of media events
-  // into this Set. Note: the "error" event isn't an exclusive media event,
-  // and can occur on other elements too. Rather than duplicate that event,
-  // we just take it from the media events array.
   ...mediaEventTypes,
 ]);
 
@@ -269,11 +265,10 @@ export function listenToNativeEvent(
 const listeningMarker = "_reactListening" + Math.random().toString(36).slice(2);
 
 export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
+  // hc: 防止重复绑定
   if (!rootContainerElement[listeningMarker]) {
     rootContainerElement[listeningMarker] = true;
     allNativeEvents.forEach((domEventName) => {
-      // We handle selectionchange separately because it
-      // doesn't bubble and needs to be on the document.
       if (domEventName !== "selectionchange") {
         if (!nonDelegatedEvents.has(domEventName)) {
           listenToNativeEvent(domEventName, false, rootContainerElement);
@@ -288,8 +283,7 @@ export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
         : (rootContainerElement as HTMLElement).ownerDocument;
 
     if (ownerDocument !== null) {
-      // The selectionchange event also needs deduplication
-      // but it is attached to the document.
+      // hc: 同样防止重复绑定，selectionchange 仅在 document 上触发，并且不冒泡
       if (!ownerDocument[listeningMarker]) {
         ownerDocument[listeningMarker] = true;
         listenToNativeEvent("selectionchange", false, ownerDocument);

@@ -1,6 +1,9 @@
+import { Fiber } from "../../../react-reconciler/ReactInternalTypes";
 import { canUseDOM } from "../../../shared/ExecutionEnvironment";
 import { DOMEventName } from "../DOMEventNames";
+import { DispatchQueue } from "../DOMPluginEventSystem";
 import { registerTwoPhaseEvent } from "../EventRegistry";
+import { EventSystemFlags } from "../EventSystemFlags";
 import { SyntheticCompositionEvent } from "../SyntheticEvent";
 
 const END_KEYCODES = [9, 13, 27, 32]; // Tab, Return, Esc, Space

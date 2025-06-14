@@ -22,9 +22,10 @@ import {
 } from '../../client/ReactDOMComponentTree';
 import {accumulateEnterLeaveTwoPhaseListeners} from '../DOMPluginEventSystem';
 import type {KnownReactSyntheticEvent} from '../ReactSyntheticEventType';
+import { Fiber } from '../../../react-reconciler/ReactInternalTypes';
+import { HostComponent, HostText } from '../../../react-reconciler/ReactWorkTags';
+import { getNearestMountedFiber } from '../../../react-reconciler/ReactFiberTreeReflection';
 
-import {HostComponent, HostText} from 'react-reconciler/src/ReactWorkTags';
-import {getNearestMountedFiber} from 'react-reconciler/src/ReactFiberTreeReflection';
 
 function registerEvents() {
   registerDirectEvent('onMouseEnter', ['mouseout', 'mouseover']);
@@ -80,12 +81,12 @@ function extractEvents(
 
   let win;
   // TODO: why is this nullable in the types but we read from it?
-  if ((nativeEventTarget: any).window === nativeEventTarget) {
+  if (nativeEventTarget.window === nativeEventTarget) {
     // `nativeEventTarget` is probably a window object.
     win = nativeEventTarget;
   } else {
     // TODO: Figure out why `ownerDocument` is sometimes undefined in IE8.
-    const doc = (nativeEventTarget: any).ownerDocument;
+    const doc = nativeEventTarget.ownerDocument;
     if (doc) {
       win = doc.defaultView || doc.parentWindow;
     } else {

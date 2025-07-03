@@ -1,16 +1,7 @@
-/**
- * Copyright (c) Facebook, Inc. and its affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- * @flow
- */
-
-function invokeGuardedCallbackProd<A, B, C, D, E, F, Context>(
+function invokeGuardedCallbackProd<A, B, C, D, E, F, any>(
   name: string | null,
   func: (a: A, b: B, c: C, d: D, e: E, f: F) => any,
-  context: Context,
+  context: any,
   a: A,
   b: B,
   c: C,

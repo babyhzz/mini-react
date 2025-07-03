@@ -1,9 +1,10 @@
 import { getToStringValue, toString } from "./ToStringValue";
 
 export function updateWrapper(element: Element, props: any) {
-  const node = element as any;
+  const node = element as HTMLInputElement;
   const value = getToStringValue(props.value);
   const defaultValue = getToStringValue(props.defaultValue);
+  // hc 注意这里是一个等号，undefined 和 null 是等价的
   if (value != null) {
     // Cast `value` to a string to ensure the value is set correctly. While
     // browsers typically do this as necessary, jsdom doesn't.

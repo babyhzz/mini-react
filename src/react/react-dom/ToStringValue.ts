@@ -4,7 +4,7 @@ export type ToStringValue =
   | Object
   | string
   | null
-  | void;
+  | undefined;
 
 export function toString(value: ToStringValue): string {
   return '' + value;

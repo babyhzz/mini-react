@@ -6,7 +6,6 @@ const setInnerHTML = function (
 ): void {
   if (node.namespaceURI === SVG_NAMESPACE) {
     if (!("innerHTML" in node)) {
-      // hc: 这是删除所有子节点的方式？
       while (node.firstChild) {
         node.removeChild(node.firstChild);
         return;
